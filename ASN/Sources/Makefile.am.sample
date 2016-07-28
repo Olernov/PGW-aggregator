@@ -1,0 +1,247 @@
+ASN_MODULE_SOURCES=	\
+	CallReferenceNumber.c	\
+	DiameterIdentity.c	\
+	LocationMethod.c	\
+	GPRSRecord.c	\
+	PGWRecord.c	\
+	AccessPointNameNI.c	\
+	AccessPointNameOI.c	\
+	AddressString.c	\
+	AFChargingIdentifier.c	\
+	AFRecordInformation.c	\
+	APNSelectionMode.c	\
+	BCDDirectoryNumber.c	\
+	CallDuration.c	\
+	CalledNumber.c	\
+	CallingNumber.c	\
+	CellId.c	\
+	CAMELAccessPointNameNI.c	\
+	CAMELAccessPointNameOI.c	\
+	CAMELInformationMM.c	\
+	CAMELInformationPDP.c	\
+	CAMELInformationSMS.c	\
+	CauseForRecClosing.c	\
+	ChangeCondition.c	\
+	ChangeOfCharCondition.c	\
+	ChangeOfMBMSCondition.c	\
+	ChangeOfServiceCondition.c	\
+	ChangeLocation.c	\
+	ChargingCharacteristics.c	\
+	ChargingID.c	\
+	ChargingRuleBaseName.c	\
+	ChChSelectionMode.c	\
+	CSGAccessMode.c	\
+	CSGId.c	\
+	CTEID.c	\
+	DataVolumeGPRS.c	\
+	DataVolumeMBMS.c	\
+	DefaultGPRS-Handling.c	\
+	DefaultSMS-Handling.c	\
+	Diagnostics.c	\
+	DynamicAddressFlag.c	\
+	EPCQoSInformation.c	\
+	EventBasedChargingInformation.c	\
+	FailureHandlingContinue.c	\
+	FFDAppendIndicator.c	\
+	Flows.c	\
+	FreeFormatData.c	\
+	GSNAddress.c	\
+	IMEI.c	\
+	IMSI.c	\
+	IPAddress.c	\
+	IPBinaryAddress.c	\
+	IPBinV4Address.c	\
+	IPBinV6Address.c	\
+	IPBinV6AddressWithOrWithoutPrefixLength.c	\
+	IPBinV6AddressWithPrefixLength.c	\
+	PDPAddressPrefixLength.c	\
+	IPTextRepresentedAddress.c	\
+	ISDN-AddressString.c	\
+	LCSCause.c	\
+	LevelOfCAMELService.c	\
+	LocalSequenceNumber.c	\
+	LocationAreaAndCell.c	\
+	LocationAreaCode.c	\
+	ManagementExtensions.c	\
+	ManagementExtension.c	\
+	MessageReference.c	\
+	MCC-MNC.c	\
+	MSISDN.c	\
+	MSNetworkCapability.c	\
+	MSTimeZone.c	\
+	NetworkInitiatedPDPContext.c	\
+	NodeID.c	\
+	NumberOfDPEncountered.c	\
+	PLMN-Id.c	\
+	PositioningData.c	\
+	PositionMethodFailure-Diagnostic.c	\
+	PDPAddress.c	\
+	PDPType.c	\
+	PSFurnishChargingInformation.c	\
+	QoSInformation.c	\
+	RAIdentity.c	\
+	RatingGroupId.c	\
+	RATType.c	\
+	RecordingEntity.c	\
+	RecordType.c	\
+	ResultCode.c	\
+	RoutingAreaCode.c	\
+	ServiceConditionChange.c	\
+	ServiceKey.c	\
+	ServiceSpecificInfo.c	\
+	SCFAddress.c	\
+	ServiceIdentifier.c	\
+	ServingNodeType.c	\
+	SGSNChange.c	\
+	SGWChange.c	\
+	SMSResult.c	\
+	SmsTpDestinationNumber.c	\
+	SubscriptionID.c	\
+	SubscriptionIDType.c	\
+	TBCD-STRING.c	\
+	TimeQuotaMechanism.c	\
+	TimeQuotaType.c	\
+	TimeStamp.c	\
+	TWANUserLocationInfo.c	\
+	UserCSGInformation.c	\
+	UnauthorizedLCSClient-Diagnostic.c
+
+ASN_MODULE_HEADERS=	\
+	CallReferenceNumber.h	\
+	DiameterIdentity.h	\
+	LocationMethod.h	\
+	GPRSRecord.h	\
+	PGWRecord.h	\
+	AccessPointNameNI.h	\
+	AccessPointNameOI.h	\
+	AddressString.h	\
+	AFChargingIdentifier.h	\
+	AFRecordInformation.h	\
+	APNSelectionMode.h	\
+	BCDDirectoryNumber.h	\
+	CallDuration.h	\
+	CalledNumber.h	\
+	CallingNumber.h	\
+	CellId.h	\
+	CAMELAccessPointNameNI.h	\
+	CAMELAccessPointNameOI.h	\
+	CAMELInformationMM.h	\
+	CAMELInformationPDP.h	\
+	CAMELInformationSMS.h	\
+	CauseForRecClosing.h	\
+	ChangeCondition.h	\
+	ChangeOfCharCondition.h	\
+	ChangeOfMBMSCondition.h	\
+	ChangeOfServiceCondition.h	\
+	ChangeLocation.h	\
+	ChargingCharacteristics.h	\
+	ChargingID.h	\
+	ChargingRuleBaseName.h	\
+	ChChSelectionMode.h	\
+	CSGAccessMode.h	\
+	CSGId.h	\
+	CTEID.h	\
+	DataVolumeGPRS.h	\
+	DataVolumeMBMS.h	\
+	DefaultGPRS-Handling.h	\
+	DefaultSMS-Handling.h	\
+	Diagnostics.h	\
+	DynamicAddressFlag.h	\
+	EPCQoSInformation.h	\
+	EventBasedChargingInformation.h	\
+	FailureHandlingContinue.h	\
+	FFDAppendIndicator.h	\
+	Flows.h	\
+	FreeFormatData.h	\
+	GSNAddress.h	\
+	IMEI.h	\
+	IMSI.h	\
+	IPAddress.h	\
+	IPBinaryAddress.h	\
+	IPBinV4Address.h	\
+	IPBinV6Address.h	\
+	IPBinV6AddressWithOrWithoutPrefixLength.h	\
+	IPBinV6AddressWithPrefixLength.h	\
+	PDPAddressPrefixLength.h	\
+	IPTextRepresentedAddress.h	\
+	ISDN-AddressString.h	\
+	LCSCause.h	\
+	LevelOfCAMELService.h	\
+	LocalSequenceNumber.h	\
+	LocationAreaAndCell.h	\
+	LocationAreaCode.h	\
+	ManagementExtensions.h	\
+	ManagementExtension.h	\
+	MessageReference.h	\
+	MCC-MNC.h	\
+	MSISDN.h	\
+	MSNetworkCapability.h	\
+	MSTimeZone.h	\
+	NetworkInitiatedPDPContext.h	\
+	NodeID.h	\
+	NumberOfDPEncountered.h	\
+	PLMN-Id.h	\
+	PositioningData.h	\
+	PositionMethodFailure-Diagnostic.h	\
+	PDPAddress.h	\
+	PDPType.h	\
+	PSFurnishChargingInformation.h	\
+	QoSInformation.h	\
+	RAIdentity.h	\
+	RatingGroupId.h	\
+	RATType.h	\
+	RecordingEntity.h	\
+	RecordType.h	\
+	ResultCode.h	\
+	RoutingAreaCode.h	\
+	ServiceConditionChange.h	\
+	ServiceKey.h	\
+	ServiceSpecificInfo.h	\
+	SCFAddress.h	\
+	ServiceIdentifier.h	\
+	ServingNodeType.h	\
+	SGSNChange.h	\
+	SGWChange.h	\
+	SMSResult.h	\
+	SmsTpDestinationNumber.h	\
+	SubscriptionID.h	\
+	SubscriptionIDType.h	\
+	TBCD-STRING.h	\
+	TimeQuotaMechanism.h	\
+	TimeQuotaType.h	\
+	TimeStamp.h	\
+	TWANUserLocationInfo.h	\
+	UserCSGInformation.h	\
+	UnauthorizedLCSClient-Diagnostic.h
+
+
+
+lib_LTLIBRARIES=libsomething.la
+libsomething_la_SOURCES=$(ASN_MODULE_SOURCES) $(ASN_MODULE_HEADERS)
+
+# This file may be used as an input for make(3)
+# Remove the lines below to convert it into a pure .am file
+TARGET = progname
+CFLAGS += -I.
+OBJS=${ASN_MODULE_SOURCES:.c=.o} ${ASN_CONVERTER_SOURCES:.c=.o}
+
+all: $(TARGET)
+
+$(TARGET): ${OBJS}
+	$(CC) $(CFLAGS) -o $(TARGET) ${OBJS} $(LDFLAGS) $(LIBS)
+
+.SUFFIXES:
+.SUFFIXES: .c .o
+
+.c.o:
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+clean:
+	rm -f $(TARGET)
+	rm -f $(OBJS)
+
+regen: regenerate-from-asn1-source
+
+regenerate-from-asn1-source:
+	/home/oleg/projects/asn1c-0.9.27/asn1c/asn1c ./PGW_CDR_Format.asn
+
