@@ -4,6 +4,7 @@
 #include "GPRSRecord.h"
 #include "CDRRecord.h"
 #include "OTL_Header.h"
+#include "Utils.h"
 
 #define LOG_ERROR 3
 
@@ -15,15 +16,12 @@ void log(short msgType, string msgText)
 
 }
 
-unsigned long long TBCDString_to_LongLong(TBCD_STRING_t* pTBCDString)
-{
-    unsigned long long res = 0;
-
-}
-
 int main(int argc, const char* argv[])
 {
-    FILE *fTapFile=fopen(argv[1],"rb");
+	Utils::TBCDString_to_ULongLong_Test();
+	Utils::IPAddress_to_ULong_Test();
+
+	FILE *fTapFile=fopen(argv[1],"rb");
     if(!fTapFile) {
         log(LOG_ERROR, string ("Unable to open input file ") + argv[1]);
         return -1;
@@ -67,9 +65,25 @@ int main(int argc, const char* argv[])
         }
         nextChunk += rval.consumed;
         recordCount++;
-        //ASN_STRUCT_FREE(asn_DEF_GPRSRecord, pGprsRecord);
+
         cdrQueue.push(pGprsRecord);
         //pGprsRecord = NULL;
+		const PGWRecord& pGWRecord = pGprsRecord->choice.pGWRecord;
+		unsigned long long imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
+		cout << "chargingID: " << pGWRecord.chargingID << endl;
+		cout << "IMSI: " << imsi << endl;
+		if (pGWRecord.servedMSISDN)
+			cout << "MSISDN: " << Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN) << endl;
+		cout << "IMEI: " << Utils::TBCDString_to_ULongLong(pGWRecord.servedIMEISV) << endl;
+		if (pGWRecord.accessPointNameNI)
+			cout << "APN: " << pGWRecord.accessPointNameNI->buf << endl;
+		cout << "Duration: " << pGWRecord.duration << endl;
+
+		cout << "servingNodeAddress: " << Utils::BinIPAddress_to_Text(
+					Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress.list.array[0])) << endl;
+		if (pGWRecord.servingNodePLMNIdentifier)
+			cout << "PLMN-ID: " << Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier) << endl;
+		//ASN_STRUCT_FREE(asn_DEF_GPRSRecord, pGprsRecord);
     }
 
     cout << recordCount << " records parsed in " << argv[1] << endl;
@@ -79,11 +93,16 @@ int main(int argc, const char* argv[])
 
     otl_connect::otl_initialize();
     otl_connect dbConnect;
-    dbConnect.rlogon("aggregator/aggregator@192.168.101.249:1521/welcome");
+    try {
+        dbConnect.rlogon("aggregator/aggregator@192.168.101.249:1521/welcome");
+    }
+    catch(otl_exception& otlEx) {
+        // TODO: add correct processing
+        cout << "Could not connect to DB";
+    }
 
 
     dbConnect.logoff();
 
     return 0;
 }
-
