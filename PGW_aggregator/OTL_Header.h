@@ -1,3 +1,4 @@
+#pragma once
 #define OTL_ORA9I // Compile OTL 4.0/OCI9i
 // #define OTL_ORA8
 // #define OTL_ORA8I
@@ -68,4 +69,5 @@ const OTL_BIGINT BIGINT_VAL1=12345678901234000LL;
 #endif
 
 #define OTL_STL
+#define OTL_STREAM_NO_PRIVATE_UNSIGNED_LONG_OPERATORS
 #include "otlv4.h"

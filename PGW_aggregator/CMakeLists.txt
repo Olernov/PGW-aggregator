@@ -11,7 +11,6 @@ aux_source_directory(. SRC_LIST)
 aux_source_directory(../ASN SRC_LIST)
 aux_source_directory(../ASN/skeletons SRC_LIST)
 #add_definitions(-DEMIT_ASN_DEBUG)
-# add_library(lclntsh)
 
 # set the path to the library folder
 link_directories(/usr/lib/oracle/11.2/client64/lib)
@@ -20,6 +19,9 @@ add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 # link the libraries to the executable
 target_link_libraries (${PROJECT_NAME} libclntsh.so)
+target_link_libraries (${PROJECT_NAME} libboost_system.so)
+
+
 
 
 
