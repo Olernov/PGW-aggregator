@@ -46,7 +46,6 @@ void Aggregator::PrintCDRContents(const PGWRecord& pGWRecord)
 	}
 }
 
-
 map<RatingGroupId_t, DataVolumes> Aggregator::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord) const
 {
 	map<RatingGroupId_t, DataVolumes> dataVolumes;
@@ -108,38 +107,84 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
 	if (pGWRecord.listOfServiceData) {
 		// process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
 		map<RatingGroupId_t, DataVolumes> dataVolumes = SumDataVolumesByRatingGroup(pGWRecord);
-		unsigned long long imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
 		// try to find sessions having this Charging ID in appropriate map (by hash of IMSI)
-		auto eqRange = m_sessions[imsi % m_sessionMapsNum].equal_range(pGWRecord.chargingID); // equal_range is used because of multimap. If we were using map, we could use find here
+		auto eqRange = GetAppropriateMap(Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI)).equal_range(
+					pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
 		if (eqRange.first == eqRange.second) {
 			// not found
 			// create new session for every rating group in CDR record
-			for (auto it : dataVolumes) {
-				m_sessions[imsi % m_sessionMapsNum].insert(pair<ChargingID_t, Session> (pGWRecord.chargingID,
-					Session(imsi,
-					   Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN),
-					   Utils::TBCDString_to_ULongLong(pGWRecord.servedIMEISV),
-					   (pGWRecord.accessPointNameNI ? (const char*) pGWRecord.accessPointNameNI->buf : ""),
-					   pGWRecord.duration,
-					   Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress.list.array[0]),
-					   Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
-					   it.first,
-					   it.second.volumeUplink,
-					   it.second.volumeDownlink,
-					   Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime))));
+			for (auto dataVolumeIter : dataVolumes) {
+				CreateSession(pGWRecord,
+							  dataVolumeIter.first /* rating group */,
+							  dataVolumeIter.second.volumeUplink, dataVolumeIter.second.volumeDownlink);
+//				m_sessions[imsi % m_sessionMapsNum].insert(pair<ChargingID_t, Session> (pGWRecord.chargingID,
+//					Session(imsi,
+//					   Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN),
+//					   Utils::TBCDString_to_ULongLong(pGWRecord.servedIMEISV),
+//					   (pGWRecord.accessPointNameNI ? (const char*) pGWRecord.accessPointNameNI->buf : ""),
+//					   pGWRecord.duration,
+//					   Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress.list.array[0]),
+//					   Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
+//					   dataVolumeIter.first, // rating group
+//					   dataVolumeIter.second.volumeUplink,
+//					   dataVolumeIter.second.volumeDownlink,
+//					   Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime))));
 			}
 		}
 		else {
 			// one or more sessions having this Charging ID are found, try to find appropriate rating group
-			for (auto sessionIter = eqRange.first; sessionIter != eqRange.second; sessionIter++) {
+			for (auto sessionIter = eqRange.first; sessionIter != eqRange.second; ++sessionIter) {
 				auto dataVolumeIter = dataVolumes.find(sessionIter->second.m_ratingGroup);
 				if (dataVolumeIter != dataVolumes.end()) {
+					// session having same rating group found, update values
 					sessionIter->second.m_dataVolumeUplink += dataVolumeIter->second.volumeUplink;
 					sessionIter->second.m_dataVolumeDownlink += dataVolumeIter->second.volumeDownlink;
+					sessionIter->second.m_duration += pGWRecord.duration;
+					dataVolumes.erase(dataVolumeIter);
 				}
+			}
+			// create new sessions for all data volumes left in map after updating (i.e. new rating groups)
+			for (auto dataVolumeIter : dataVolumes) {
+				cout << pGWRecord.chargingID << ": create new session for rating groups left in dataVolumes" << endl;
+				CreateSession(pGWRecord,
+							  dataVolumeIter.first /* rating group */,
+							  dataVolumeIter.second.volumeUplink, dataVolumeIter.second.volumeDownlink);
 			}
 		}
 	}
+}
+
+
+std::multimap<ChargingID_t, Session>& Aggregator::GetAppropriateMap(unsigned long long imsi)
+{
+	return m_sessions[imsi % m_sessionMapsNum];
+}
+
+
+void Aggregator::CreateSession(const PGWRecord& pGWRecord, std::multimap<ChargingID_t, Session>::iterator insertPos,
+							   unsigned long ratingGroup, unsigned long volumeUplink, unsigned long volumeDownlink)
+{
+	unsigned long long imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
+	m_sessions[imsi % m_sessionMapsNum].insert(/*insertPos,*/ pair<ChargingID_t, Session> (pGWRecord.chargingID,
+		Session(imsi,
+		   Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN),
+		   Utils::TBCDString_to_ULongLong(pGWRecord.servedIMEISV),
+		   (pGWRecord.accessPointNameNI ? (const char*) pGWRecord.accessPointNameNI->buf : ""),
+		   pGWRecord.duration,
+		   Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress.list.array[0]),
+		   Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
+		   ratingGroup,
+		   volumeUplink,
+		   volumeDownlink,
+		   Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime))));
+}
+
+
+void Aggregator::CreateSession(const PGWRecord& pGWRecord,
+							   unsigned long ratingGroup, unsigned long volumeUplink, unsigned long volumeDownlink)
+{
+	CreateSession(pGWRecord, GetAppropriateMap(Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI)).begin(),
+				   ratingGroup, volumeUplink, volumeDownlink);
 }
 
 
@@ -202,8 +247,15 @@ void Aggregator::ExportAllSessionsToDB(string filename)
 					<< (long long) it.second.m_dataVolumeDownlink
 					<< Utils::Time_t_to_String(it.second.m_firstCDRTime);
 			dbStream.close();
+
 		}
 	}
+}
+
+void Aggregator::EraseAllSessions()
+{
+	for(int i = 0; i < m_sessionMapsNum; i++)
+		m_sessions[i].clear();
 }
 
 

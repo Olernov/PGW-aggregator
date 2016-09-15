@@ -11,9 +11,61 @@ Parser::Parser(const Aggregator& aggregator) :
 {}
 
 
-void Parser::ProcessDirectory(string cdrFilesDirectory, bool perFileAggregationTest = false)
+void Parser::ProcessCDRFile(string filename)
 {
-	//string filename = "../CDR/b00666877.dat";
+	FILE *pgwFile = fopen(filename.c_str(), "rb");
+	if(!pgwFile)
+		throw string ("Unable to open input file ") + filename;
+
+	fseek(pgwFile, 0, SEEK_END);
+	unsigned long pgwFileLen = ftell(pgwFile); // длина данных файла (без заголовка)
+	unique_ptr<unsigned char[]> buffer (new unsigned char [pgwFileLen]);
+	fseek(pgwFile, 0, SEEK_SET);
+	size_t bytesRead = fread(buffer.get(), 1, pgwFileLen, pgwFile);
+	fclose(pgwFile);
+	if(bytesRead < pgwFileLen) {
+		throw string("Error reading file ") + filename;
+	}
+
+	FILE* fileContents = NULL;
+	if (m_printFileContents)
+		fileContents = fopen (string(filename + "_contents.txt").c_str(), "w");
+
+	asn_dec_rval_t rval;
+	unsigned long nextChunk = 0;
+	unsigned long recordCount = 0;
+	const int maxPGWRecordSize = 2000;
+	while(nextChunk < bytesRead) {
+		GPRSRecord* pGprsRecord = NULL;
+		rval = ber_decode(0, &asn_DEF_GPRSRecord, (void**) &pGprsRecord, buffer.get() + nextChunk, maxPGWRecordSize);
+		if(rval.code != RC_OK) {
+			if (fileContents)
+				fclose(fileContents);
+			throw string("Error while decoding ASN file. Error code ") + std::to_string(rval.code);
+		}
+
+		if (m_printFileContents && fileContents != NULL) {
+			asn_fprint(fileContents, &asn_DEF_GPRSRecord, pGprsRecord);
+
+		}
+		nextChunk += rval.consumed;
+		recordCount++;
+
+		//const PGWRecord& pGWRecord = pGprsRecord->choice.pGWRecord;
+
+		m_aggregator.ProcessCDR(pGprsRecord->choice.pGWRecord);
+
+		ASN_STRUCT_FREE(asn_DEF_GPRSRecord, pGprsRecord);
+	}
+	if (fileContents)
+		fclose(fileContents);
+}
+
+
+
+
+void Parser::ProcessDirectory(string cdrFilesDirectory, string cdrExtension, bool perFileAggregationTest = false)
+{
 	filesystem::path cdrPath(cdrFilesDirectory);
 
 	try {
@@ -24,57 +76,17 @@ void Parser::ProcessDirectory(string cdrFilesDirectory, bool perFileAggregationT
 			throw string("Given CDR files directory ") + cdrFilesDirectory + " exists, but is not a directory";
 
 		filesystem::directory_iterator endIterator;
-		for (/*filesystem::directory_entry*/auto&& nextFile : filesystem::directory_iterator(cdrPath)) {
-		//for (filesystem::directory_iterator dirIterator(path); dirIterator != endIterator; dirIterator++) {
-			FILE *pgwFile = fopen(dirIterator->leaf().c_str(), "rb");
-			if(!pgwFile)
-				throw string ("Unable to open input file ") + nextFile;
+		for(filesystem::directory_iterator dirIterator(cdrPath); dirIterator != endIterator; dirIterator++) {
+			if (filesystem::is_regular_file(dirIterator->status()) &&
+					dirIterator->path().extension() == cdrExtension) {
+				cout << "Parsing file " << dirIterator->path().filename().string() << "..." << endl;
+				ProcessCDRFile(dirIterator->path().string());
+				cout << "File " << dirIterator->path().filename().string() << "parsed, exporting sessions..." << endl;
 
-			fseek(pgwFile, 0, SEEK_END);
-			unsigned long pgwFileLen = ftell(pgwFile); // длина данных файла (без заголовка)
-			//unsigned char* buffer = new unsigned char [pgwFileLen];
-			unique_ptr<unsigned char[]> buffer (new unsigned char [pgwFileLen]);
-			fseek(pgwFile, 0, SEEK_SET);
-			size_t bytesRead = fread(buffer.get(), 1, pgwFileLen, pgwFile);
-			fclose(pgwFile);
-			if(bytesRead < pgwFileLen) {
-				throw string("Error reading file ") + filename;
-			}
-
-			FILE* fileContents = NULL;
-			if (m_printFileContents)
-				fileContents = fopen (string(filename + "_contents.txt").c_str(), "w");
-
-			asn_dec_rval_t rval;
-			unsigned long nextChunk = 0;
-			unsigned long recordCount = 0;
-			const int maxPGWRecordSize = 2000;
-			while(nextChunk < bytesRead) {
-				GPRSRecord* pGprsRecord = NULL;
-				rval = ber_decode(0, &asn_DEF_GPRSRecord, (void**) &pGprsRecord, buffer.get() + nextChunk, maxPGWRecordSize);
-				if(rval.code != RC_OK) {
-					if (fileContents)
-						fclose(fileContents);
-					throw string("Error while decoding ASN file. Error code ") + std::to_string(rval.code);
+				if (perFileAggregationTest) {
+					m_aggregator.ExportAllSessionsToDB(dirIterator->path().filename().string());
+					m_aggregator.EraseAllSessions();
 				}
-
-				if (m_printFileContents && fileContents != NULL) {
-					asn_fprint(fileContents, &asn_DEF_GPRSRecord, pGprsRecord);
-
-				}
-				nextChunk += rval.consumed;
-				recordCount++;
-
-				//const PGWRecord& pGWRecord = pGprsRecord->choice.pGWRecord;
-
-				m_aggregator.ProcessCDR(pGprsRecord->choice.pGWRecord);
-
-				ASN_STRUCT_FREE(asn_DEF_GPRSRecord, pGprsRecord);
-			}
-			if (fileContents)
-				fclose(fileContents);
-			if (perFileAggregationTest) {
-				m_aggregator.ExportAllSessionsToDB(filename);
 			}
 		}
 	}
@@ -85,9 +97,9 @@ void Parser::ProcessDirectory(string cdrFilesDirectory, bool perFileAggregationT
 }
 
 
-void Parser::RunPerFileAggregationTest(string sampleCdrDirectory)
+void Parser::RunPerFileAggregationTest(string sampleCdrDirectory, string cdrExtension)
 {
-	ProcessDirectory(sampleCdrDirectory, true);
+	ProcessDirectory(sampleCdrDirectory, cdrExtension, true);
 }
 
 

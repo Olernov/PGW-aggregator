@@ -20,6 +20,7 @@ add_executable(${PROJECT_NAME} ${SRC_LIST})
 # link the libraries to the executable
 target_link_libraries (${PROJECT_NAME} libclntsh.so)
 target_link_libraries (${PROJECT_NAME} libboost_system.so)
+target_link_libraries (${PROJECT_NAME} libboost_filesystem.so)
 
 
 

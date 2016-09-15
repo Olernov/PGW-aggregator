@@ -36,7 +36,7 @@ int main(int argc, const char* argv[])
 		Aggregator aggregator(dbConnect);
 		aggregator.RunAllTests();
 		Parser parser(aggregator);
-		parser.RunPerFileAggregationTest("../CDR/");
+		parser.RunPerFileAggregationTest("../SampleCDR/", ".dat");
 
 		dbConnect.commit();
 		dbConnect.logoff();
