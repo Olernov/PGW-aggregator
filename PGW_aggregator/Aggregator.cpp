@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Aggregator.h"
 #include "Utils.h"
+#include "Common.h"
 
 
 Aggregator::Aggregator(otl_connect& dbConnect) :
@@ -145,7 +146,6 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
 			}
 			// create new sessions for all data volumes left in map after updating (i.e. new rating groups)
 			for (auto dataVolumeIter : dataVolumes) {
-				cout << pGWRecord.chargingID << ": create new session for rating groups left in dataVolumes" << endl;
 				CreateSession(pGWRecord,
 							  dataVolumeIter.first /* rating group */,
 							  dataVolumeIter.second.volumeUplink, dataVolumeIter.second.volumeDownlink);
@@ -212,9 +212,15 @@ void Aggregator::PrintSessions()
 void Aggregator::ExportAllSessionsToDB(string filename)
 {
 	otl_nocommit_stream dbStream;
-	dbStream.open(1,
-		"delete from TEST_SESSION_EXPORT where filename = :filename /*char[30]*/", m_dbConnect);
-	dbStream << filename;
+	if (!filename.empty()) {
+		dbStream.open(1,
+			"delete from TEST_SESSION_EXPORT where filename = :filename /*char[30]*/", m_dbConnect);
+		dbStream << filename;
+	}
+	else {
+		dbStream.open(1,
+			"delete from TEST_SESSION_EXPORT", m_dbConnect);
+	}
 	dbStream.close();
 	for (int i = 0; i < m_sessionMapsNum; i++) {
 		for (auto it : m_sessions[i]) {
@@ -247,15 +253,23 @@ void Aggregator::ExportAllSessionsToDB(string filename)
 					<< (long long) it.second.m_dataVolumeDownlink
 					<< Utils::Time_t_to_String(it.second.m_firstCDRTime);
 			dbStream.close();
-
 		}
 	}
+	m_dbConnect.commit();
 }
 
 void Aggregator::EraseAllSessions()
 {
 	for(int i = 0; i < m_sessionMapsNum; i++)
 		m_sessions[i].clear();
+}
+
+void Aggregator::CheckExportedData(AggregationTestType testType)
+{
+	otl_stream otlStream;
+	otlStream.open(1, "call CHECK_TEST_EXPORT(:testType /*long,in*/)", m_dbConnect);
+	otlStream << static_cast<long> (testType);
+	otlStream.close();
 }
 
 

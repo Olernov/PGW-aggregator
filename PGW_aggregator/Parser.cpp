@@ -64,7 +64,8 @@ void Parser::ProcessCDRFile(string filename)
 
 
 
-void Parser::ProcessDirectory(string cdrFilesDirectory, string cdrExtension, bool perFileAggregationTest = false)
+void Parser::ProcessDirectory(string cdrFilesDirectory, string cdrExtension,
+							  AggregationTestType testType = noTest)
 {
 	filesystem::path cdrPath(cdrFilesDirectory);
 
@@ -81,9 +82,10 @@ void Parser::ProcessDirectory(string cdrFilesDirectory, string cdrExtension, boo
 					dirIterator->path().extension() == cdrExtension) {
 				cout << "Parsing file " << dirIterator->path().filename().string() << "..." << endl;
 				ProcessCDRFile(dirIterator->path().string());
-				cout << "File " << dirIterator->path().filename().string() << "parsed, exporting sessions..." << endl;
+				cout << "File " << dirIterator->path().filename().string() << " parsed" << endl;
 
-				if (perFileAggregationTest) {
+				if (testType == perFileTest) {
+					cout << "Exporting sessions ..." << endl;
 					m_aggregator.ExportAllSessionsToDB(dirIterator->path().filename().string());
 					m_aggregator.EraseAllSessions();
 				}
@@ -99,7 +101,20 @@ void Parser::ProcessDirectory(string cdrFilesDirectory, string cdrExtension, boo
 
 void Parser::RunPerFileAggregationTest(string sampleCdrDirectory, string cdrExtension)
 {
-	ProcessDirectory(sampleCdrDirectory, cdrExtension, true);
+	ProcessDirectory(sampleCdrDirectory, cdrExtension, perFileTest);
+	cout << "Checking exported data ..." << endl;
+	m_aggregator.CheckExportedData(perFileTest);
+	cout << "Per file aggregation test PASSED." << endl;
+}
+
+void Parser::RunTotalAggregationTest(string sampleCdrDirectory, string cdrExtension)
+{
+	ProcessDirectory(sampleCdrDirectory, cdrExtension, totalTest);
+	cout << "Exporting sessions ..." << endl;
+	m_aggregator.ExportAllSessionsToDB("");
+	cout << "Checking exported data ..." << endl;
+	m_aggregator.CheckExportedData(totalTest);
+	cout << "Total aggregation test PASSED." << endl;
 }
 
 

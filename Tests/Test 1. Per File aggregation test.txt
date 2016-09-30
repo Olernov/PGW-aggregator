@@ -1,0 +1,29 @@
+This test is used to ensure that parsing and aggregating data volumes are made correctly.
+
+This test processes CDR files from given sample directory. After each file it exports all contents of session maps to DB (table TEST_EXPORT_SESSIONS) then clears session maps and processes next file. 
+
+Script Sample_CDR_creation.sql must be executed created prior to running test!
+It creates tables SAMPLE_CDRS, TEST_SESSION_EXPORT, indexes and insert sample data to SAMPLE_CDRS.
+
+Results of session export are being compared to sample CDR data loaded by CDR-PGW Loader. 
+Here is the script for creating sample CDR table in Aggregator scheme from Billing scheme where CDR files are uploaded:
+
+
+After sample CDR data is prepared we can run some compare scripts.
+
+-- Compare data volumes per file
+select * from (
+select s.filename, sum(s.volume_uplink) / 1000000 sample_uplink, 
+	(select sum(t.data_volume_uplink) / 1000000 from TEST_SESSION_EXPORT t where t.filename = s.filename) exported_uplink,
+	sum(s.volume_downlink)  / 1000000 sample_downlink, 
+	(select sum(t.data_volume_downlink)  / 1000000 from TEST_SESSION_EXPORT t where t.filename = s.filename) exported_downlink
+	from SAMPLE_CDRS s group by s.filename)
+where sample_uplink <> exported_uplink or sample_downlink <> exported_downlink ; 
+
+
+-- Compare data volumes per session and find incorrectly exported sessions:
+select * from (
+select s.charging_id, sum(s.volume_uplink) sample_uplink, (select sum(t.data_volume_uplink) from TEST_SESSION_EXPORT t where t.charging_id = s.charging_id) exported_uplink,
+				sum(s.volume_downlink) sample_downlink, (select sum(t.data_volume_downlink) from TEST_SESSION_EXPORT t where t.charging_id = s.charging_id) exported_downlink
+	from sample_cdrs s group by s.charging_id)
+where sample_uplink <> test_uplink or sample_downlink <> test_downlink ; 

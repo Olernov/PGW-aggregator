@@ -25,6 +25,7 @@ public:
 	void PrintSessions();
 	void ExportAllSessionsToDB(string filename);
 	void EraseAllSessions();
+	void CheckExportedData(AggregationTestType);
 	bool RunAllTests();
 private:
 	static const int maxSessionMapsNum = 32;
