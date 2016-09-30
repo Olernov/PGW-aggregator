@@ -4,12 +4,14 @@
 
 using namespace std;
 
+
 class Parser
 {
 public:
 	Parser(const Aggregator&);
-	void ProcessDirectory(string cdrFilesDirectory, string cdrExtension, bool perFileAggregationTest);
+	void ProcessDirectory(string cdrFilesDirectory, string cdrExtension, AggregationTestType testType);
 	void RunPerFileAggregationTest(string sampleCdrDirectory, string cdrExtension);
+	void RunTotalAggregationTest(string sampleCdrDirectory, string cdrExtension);
 	void SetPrintContents(bool);
 private:
 	Aggregator& m_aggregator;
