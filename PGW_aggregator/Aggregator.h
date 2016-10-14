@@ -1,19 +1,16 @@
 #pragma once
+#include <map>
+#include <memory>
 #include "Common.h"
 #include "OTL_Header.h"
 #include "GPRSRecord.h"
 #include "PGWRecord.h"
 #include "Session.h"
-#include <map>
+#include "LockFreeQueueWithSize.h"
 
-using std::string;
-
-
-struct DataVolumes {
-	DataVolumes (unsigned long uplink, unsigned long downlink) : volumeUplink(uplink), volumeDownlink(downlink) {}
-	unsigned long volumeUplink;
-	unsigned long volumeDownlink;
-};
+typedef std::multimap<unsigned long, Session_ptr> SessionMap;
+//typedef LockFreeQueueWithSize<Session*> ExportQueue;
+typedef LockFreeQueueFixedSize<Session*> ExportQueue;
 
 class Aggregator
 {
@@ -21,24 +18,23 @@ public:
 	Aggregator(otl_connect&);
 	void SetSessionMapsNum(int num);
 	void ProcessCDR(const PGWRecord& pGWRecord);
-	void PrintCDRContents(const PGWRecord& pGWRecord);
 	void PrintSessions();
-	void ExportAllSessionsToDB(string filename);
+    void ExportAllSessionsToDB(std::string filename);
 	void EraseAllSessions();
 	void CheckExportedData(AggregationTestType);
-	bool RunAllTests();
 private:
 	static const int maxSessionMapsNum = 32;
 	static const int defaultSessionMapsNum = 8;
+    static const int exportQueueSize = 1000;
 	int m_sessionMapsNum;
-	std::multimap<ChargingID_t, Session> m_sessions[maxSessionMapsNum];
-	std::multimap<ChargingID_t, Session>& GetAppropriateMap(unsigned long long imsi);
-	std::map<RatingGroupId_t, DataVolumes> SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord) const;
-	bool SumDataVolumesByRatingGroup_Test();
+    SessionMap m_sessions[maxSessionMapsNum];
+    ExportQueue m_exportQueue[maxSessionMapsNum];
 
-	void CreateSession(const PGWRecord& pGWRecord, std::multimap<ChargingID_t, Session>::iterator insertPos,
+    SessionMap& GetAppropriateMap(unsigned long long imsi);
+    ExportQueue& GetExportQueue(Session_ptr sessionPtr);
+    void CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
+    SessionMap::iterator CreateSession(const PGWRecord& pGWRecord,
 					   unsigned long ratingGroup, unsigned long volumeUplink, unsigned long volumeDownlink);
-	void CreateSession(const PGWRecord& pGWRecord,
-					   unsigned long ratingGroup, unsigned long volumeUplink, unsigned long volumeDownlink);
+    void ExportSession(Session_ptr sessionPtr);
 	otl_connect& m_dbConnect;
 };

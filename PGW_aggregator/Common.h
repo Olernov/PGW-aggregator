@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 
 const unsigned long long emptyValueULL = -1;
 const unsigned long emptyValueUL = -1;
@@ -18,3 +19,14 @@ enum AggregationTestType
 	perFileTest = 1,
 	totalTest = 2
 };
+
+struct DataVolumes {
+    DataVolumes (unsigned long uplink, unsigned long downlink) :
+        volumeUplink(uplink),
+        volumeDownlink(downlink)
+    {}
+    unsigned long volumeUplink;
+    unsigned long volumeDownlink;
+};
+
+typedef std::map<unsigned long, DataVolumes> DataVolumesMap;

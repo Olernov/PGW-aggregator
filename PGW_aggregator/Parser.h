@@ -1,20 +1,22 @@
 #pragma once
 #include <string>
 #include "Aggregator.h"
+#include "LockFreeQueueWithSize.h"
 
-using namespace std;
 
 
 class Parser
 {
 public:
 	Parser(const Aggregator&);
-	void ProcessDirectory(string cdrFilesDirectory, string cdrExtension, AggregationTestType testType);
-	void RunPerFileAggregationTest(string sampleCdrDirectory, string cdrExtension);
-	void RunTotalAggregationTest(string sampleCdrDirectory, string cdrExtension);
+    void ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExtension, AggregationTestType testType);
 	void SetPrintContents(bool);
 private:
+    static const int cdrQueueSize = 50000;
+    boost::lockfree::queue<GPRSRecord*, boost::lockfree::fixed_sized<true>> m_cdrQueue;
+    //LockFreeQueueWithSize<GPRSRecord*> m_cdrQueue;
 	Aggregator& m_aggregator;
 	bool m_printFileContents;
-	void ProcessCDRFile(string filename);
+    void ParseFile(std::string filename);
+    void ProcessCDRQueue();
 };

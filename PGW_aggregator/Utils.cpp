@@ -59,12 +59,12 @@ bool Utils::TBCDString_to_ULongLong_Test()
 			testStr, test_string_len);
 		unsigned long long res = TBCDString_to_ULongLong(pTBCDString);
 		if (res != correct_results[i]) {
-			cout << "TBCDString_to_LongLong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
-			   << " but returned " << res << endl;
+            std::cout << "TBCDString_to_LongLong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
+               << " but returned " << res << std::endl;
 			success = false;
 		}
 		else {
-			cout << "TBCDString_to_LongLong_Test #" << i + 1 << " PASSED. " << endl;
+            std::cout << "TBCDString_to_LongLong_Test #" << i + 1 << " PASSED. " << std::endl;
 		}
 		ASN_STRUCT_FREE(asn_DEF_TBCD_STRING, pTBCDString);
 		i++;
@@ -76,9 +76,9 @@ bool Utils::TBCDString_to_ULongLong_Test()
 unsigned long Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 {
 	if (!pIPAddress)
-		throw string("Empty IP address given (NULL pointer)");
+        throw std::string("Empty IP address given (NULL pointer)");
 	unsigned long ip_addr_ulong = 0;
-	string textIP;
+    std::string textIP;
 	size_t prev_pos = 0, next_pos = 0;
 	unsigned int next_octet; // not uint8_t cause we will control 8-bit overflow
 	uint8_t num_octets;
@@ -87,7 +87,7 @@ unsigned long Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 		switch (pIPAddress->choice.iPBinaryAddress.present) {
 		case IPBinaryAddress_PR_iPBinV4Address:
 			if (pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.size > 4)
-				throw string("IPv4 address consists more than of 4 bytes: ") +
+                throw std::string("IPv4 address consists more than of 4 bytes: ") +
 					PrintBinaryDump(&pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address);
 			for (int i =0; i < pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.size; i++) {
 				ip_addr_ulong <<= 8;
@@ -96,7 +96,7 @@ unsigned long Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 			break;
 		case IPBinaryAddress_PR_iPBinV6Address:
 			//if ()
-			throw string("IPv6 parsing not implemented.");
+            throw std::string("IPv6 parsing not implemented.");
 		case IPBinaryAddress_PR_NOTHING:
 			return emptyValueUL;
 		}
@@ -112,29 +112,29 @@ unsigned long Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 					next_octet *= 10;
 					next_octet += c - '0';
 					if (next_octet > 0xFF)
-						throw string("Wrong text represented IP address given: ") + textIP;
+                        throw std::string("Wrong text represented IP address given: ") + textIP;
 				}
 				else if (c == '.') {
 					ip_addr_ulong <<= 8;
 					ip_addr_ulong |= next_octet;
 					if(++num_octets > 4)
-						throw string("Wrong text represented IP address given: ") + textIP;
+                        throw std::string("Wrong text represented IP address given: ") + textIP;
 					next_octet = 0;
 				}
 				else
-					throw string("Wrong text represented IP address given: ") + textIP;
+                    throw std::string("Wrong text represented IP address given: ") + textIP;
 			}
 			ip_addr_ulong <<= 8;
 			ip_addr_ulong |= next_octet;
 			if(++num_octets != 4)
-				throw string("Wrong text represented IP address given: ") + textIP;
+                throw std::string("Wrong text represented IP address given: ") + textIP;
 			break;
 		case IPTextRepresentedAddress_PR_iPTextV6Address:
-			throw string("IPv6 parsing not implemented.");
+            throw std::string("IPv6 parsing not implemented.");
 		}
 		break;
 	case IPAddress_PR_NOTHING:
-		throw string("Empty IP address given (pIPAddress->present == IPAddress_PR_NOTHING)");
+        throw std::string("Empty IP address given (pIPAddress->present == IPAddress_PR_NOTHING)");
 	}
 	return ip_addr_ulong;
 }
@@ -174,20 +174,22 @@ bool Utils::IPAddress_to_ULong_Test()
 		try {
 			unsigned long res = IPAddress_to_ULong(&testIPAddr);
 			if (res != correct_results[i]) {
-				cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
-				   << " but returned " << res << endl;
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
+                   << " but returned " << res << std::endl;
 				success = false;
 			}
 			else {
-				cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED. " << endl;
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED. " << std::endl;
 			}
 		}
-		catch(const string& exc_text) {
+        catch(const std::string& exc_text) {
 			if (correct_results[i] == exception_sign) {
-				cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED (exception caught: " << exc_text << "). " << endl;
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED (exception caught: "
+                          << exc_text << "). " << std::endl;
 			}
 			else {
-				cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED (exception caught: " << exc_text << ")." << endl;
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED (exception caught: "
+                          << exc_text << ")." << std::endl;
 				success = false;
 			}
 		}
@@ -197,21 +199,21 @@ bool Utils::IPAddress_to_ULong_Test()
 }
 
 
-string Utils::BinIPAddress_to_Text(unsigned long ipAddress)
+std::string Utils::BinIPAddress_to_Text(unsigned long ipAddress)
 {
 	std::string textIP;
 	while(ipAddress > 0) {
 		uint8_t next_octet = ipAddress & 0xFF;
 		if (!textIP.empty())
 			textIP = '.' + textIP;
-		textIP = to_string(next_octet) + textIP;
+        textIP = std::to_string(next_octet) + textIP;
 		ipAddress >>= 8;
 	}
 	return textIP;
 }
 
 
-string Utils::PrintBinaryDump(const OCTET_STRING* pOctetStr)
+std::string Utils::PrintBinaryDump(const OCTET_STRING* pOctetStr)
 {
 	const size_t buffer_size = 256;
 	char buffer[buffer_size];
@@ -222,7 +224,7 @@ string Utils::PrintBinaryDump(const OCTET_STRING* pOctetStr)
 		sprintf(&buffer[3 * i], "%02X ", pOctetStr->buf[i]);
 	}
 	buffer[3 * (i + 1)] = '\0';
-	return string(buffer);
+    return std::string(buffer);
 
 }
 
@@ -239,10 +241,10 @@ unsigned long Utils::PLMNID_to_ULong(const PLMN_Id_t* pPLMNID)
 	//	--         bits 8765	Mobile Network Code 2nd digit
 
 	if (!pPLMNID) {
-		throw string("Empty PLMN-ID given (NULL pointer)");
+        throw std::string("Empty PLMN-ID given (NULL pointer)");
 	}
 	if (pPLMNID->size != 3) {
-		throw string("Wrong PLMN-ID given: ") + PrintBinaryDump(pPLMNID);
+        throw std::string("Wrong PLMN-ID given: ") + PrintBinaryDump(pPLMNID);
 	}
 	unsigned long plmnID =
 		(pPLMNID->buf[0] & 0x0F) * 10000 + ((pPLMNID->buf[0] & 0xF0) >> 4) * 1000 +
@@ -289,20 +291,20 @@ bool Utils::PLMNID_to_ULong_Test()
 		try {
 			res = PLMNID_to_ULong(pPLMNID);
 			if (res == correct_results[i]) {
-				cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED. " << endl;
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED. " << std::endl;
 			}
 			else {
-				cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
-				   << " but returned " << res << endl;
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
+                   << " but returned " << res << std::endl;
 				success = false;
 			}
 		}
-		catch(const string& exc_text) {
+        catch(const std::string& exc_text) {
 			if (correct_results[i] == exception_flag) {
-				cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED (exception caught: " << exc_text << "). " << endl;
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED (exception caught: " << exc_text << "). " << std::endl;
 			}
 			else {
-				cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED (exception caught: " << exc_text << "). " << endl;
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED (exception caught: " << exc_text << "). " << std::endl;
 				success = false;
 			}
 		}
@@ -343,9 +345,9 @@ time_t Utils::Timestamp_to_time_t(const TimeStamp_t* pTimestamp)
 //-- hh = hour 00 to 23 BCD encoded
 //-- mm = minute 00 to 59 BCD encoded
 	if (!pTimestamp)
-		throw string("Empty Timestamp given (NULL pointer)");
+        throw std::string("Empty Timestamp given (NULL pointer)");
 	if (pTimestamp->size != 9)
-		throw string("Wrong format of Timestamp given: ") + PrintBinaryDump(pTimestamp);
+        throw std::string("Wrong format of Timestamp given: ") + PrintBinaryDump(pTimestamp);
 	tm result;
 	result.tm_year = 100 + BCDString_to_ULong(&pTimestamp->buf[0], 1); // years since 1900
 	result.tm_mon = BCDString_to_ULong(&pTimestamp->buf[1], 1) - 1; // months since January (0-11)
@@ -359,11 +361,46 @@ time_t Utils::Timestamp_to_time_t(const TimeStamp_t* pTimestamp)
 }
 
 
-string Utils::Time_t_to_String(time_t timeT)
+std::string Utils::Time_t_to_String(time_t timeT)
 {
 	char buffer[20];
 	strftime(buffer, 20, "%Y%m%d%H%M%S", localtime(&timeT));
-	return string(buffer);
+    return std::string(buffer);
+}
+
+
+std::map<unsigned long, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord)
+{
+    std::map<unsigned long, DataVolumes> dataVolumes;
+    for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
+        auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
+        if (it != dataVolumes.end()) {
+            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink)
+                it->second.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
+            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink)
+                it->second.volumeDownlink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
+        }
+        else {
+            dataVolumes.insert(std::make_pair(pGWRecord.listOfServiceData->list.array[i]->ratingGroup,
+                DataVolumes(
+                    (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink ?
+                        *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink : 0),
+                    (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink ?
+                        *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink : 0))
+                ));
+        }
+    }
+    return dataVolumes;
+}
+
+
+bool Utils::SumDataVolumesByRatingGroup_Test()
+{
+    bool success = true;
+    PGWRecord rec;
+    void* ptr = &rec.listOfServiceData;
+    ptr = calloc(1, sizeof(PGWRecord::listOfServiceData));
+    return success;
 }
 
 
@@ -373,3 +410,4 @@ bool Utils::RunAllTests()
 	assert(Utils::IPAddress_to_ULong_Test());
 	assert(Utils::PLMNID_to_ULong_Test());
 }
+
