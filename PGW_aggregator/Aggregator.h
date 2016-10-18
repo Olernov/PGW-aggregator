@@ -12,6 +12,7 @@ typedef std::multimap<unsigned long, Session_ptr> SessionMap;
 //typedef LockFreeQueueWithSize<Session*> ExportQueue;
 typedef LockFreeQueueFixedSize<Session*> ExportQueue;
 
+
 class Aggregator
 {
 public:
@@ -22,10 +23,6 @@ public:
     void ExportAllSessionsToDB(std::string filename);
 	void EraseAllSessions();
 	void CheckExportedData(AggregationTestType);
-<<<<<<< HEAD
-=======
-	bool RunAllTests();
->>>>>>> 395dc8537034875dc9959803af5f032d74d9dcd3
 private:
 	static const int maxSessionMapsNum = 32;
 	static const int defaultSessionMapsNum = 8;

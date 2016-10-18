@@ -10,13 +10,7 @@ class Parser
 {
 public:
 	Parser(const Aggregator&);
-<<<<<<< HEAD
     void ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExtension, AggregationTestType testType);
-=======
-	void ProcessDirectory(string cdrFilesDirectory, string cdrExtension, AggregationTestType testType);
-	void RunPerFileAggregationTest(string sampleCdrDirectory, string cdrExtension);
-	void RunTotalAggregationTest(string sampleCdrDirectory, string cdrExtension);
->>>>>>> 395dc8537034875dc9959803af5f032d74d9dcd3
 	void SetPrintContents(bool);
 private:
     static const int cdrQueueSize = 50000;

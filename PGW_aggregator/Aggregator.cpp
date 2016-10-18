@@ -1,10 +1,7 @@
 #include <iostream>
 #include "Aggregator.h"
 #include "Utils.h"
-<<<<<<< HEAD
 #include "ExportRules.h"
-=======
->>>>>>> 395dc8537034875dc9959803af5f032d74d9dcd3
 #include "Common.h"
 
 
@@ -61,16 +58,7 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
                     dataVolumes.erase(dataVolumeIter);
 				}
 			}
-<<<<<<< HEAD
             CreateSessionsAndExport(pGWRecord, dataVolumes);
-=======
-			// create new sessions for all data volumes left in map after updating (i.e. new rating groups)
-			for (auto dataVolumeIter : dataVolumes) {
-				CreateSession(pGWRecord,
-							  dataVolumeIter.first /* rating group */,
-							  dataVolumeIter.second.volumeUplink, dataVolumeIter.second.volumeDownlink);
-			}
->>>>>>> 395dc8537034875dc9959803af5f032d74d9dcd3
 		}
 	}
 }
@@ -143,57 +131,11 @@ void Aggregator::PrintSessions()
 
 void Aggregator::ExportAllSessionsToDB(std::string filename)
 {
-<<<<<<< HEAD
 	for (int i = 0; i < m_sessionMapsNum; i++) {
 		for (auto& it : m_sessions[i]) {
             it.second.get()->ExportToTestTable(m_dbConnect, filename);
-=======
-	otl_nocommit_stream dbStream;
-	if (!filename.empty()) {
-		dbStream.open(1,
-			"delete from TEST_SESSION_EXPORT where filename = :filename /*char[30]*/", m_dbConnect);
-		dbStream << filename;
-	}
-	else {
-		dbStream.open(1,
-			"delete from TEST_SESSION_EXPORT", m_dbConnect);
-	}
-	dbStream.close();
-	for (int i = 0; i < m_sessionMapsNum; i++) {
-		for (auto it : m_sessions[i]) {
-			dbStream.open(1,
-				"insert into TEST_SESSION_EXPORT (filename , charging_id, imsi, msisdn, "
-				"imei, access_point_name, duration, serving_node_ip, serving_node_plmnid, rating_group, "
-				"data_volume_uplink, data_volume_downlink, first_cdr_time) values ("
-				":filename /*char[30]*/, :charging_id /*bigint*/, :imsi /*bigint*/, :msisdn /*bigint*/, "
-				":imei /*bigint*/, :access_point_name /*char[30]*/, :duration /*bigint*/, "
-				":serving_node_ip /*bigint*/, :serving_node_plmnid /*bigint*/, "
-				":rating_group /*bigint*/, :data_volume_uplink /*bigint*/,"
-				":data_volume_downlink /*bigint*/, to_date(:first_cdr_time /*char[20]*/, 'yyyymmddhh24miss'))",
-				m_dbConnect);
-			// WARNING: OTL library does not support unsigned long and unsigned long long datatypes
-			// for Oracle versions lower than ORA_R11_G2, so we cast to long long type.
-			// Long long (64-bit) type has range from -9 223 372 036 854 775 808 to 9 223 372 036 854 775 807,
-			// (19 digits) so this should be enough to store IMSI and IMEI.
-			dbStream
-					<< filename
-					<< (long long) it.first // chargingID
-					<< (long long) it.second.m_IMSI
-					<< (long long) it.second.m_MSISDN
-					<< (long long) it.second.m_IMEI
-					<< it.second.m_accessPointName
-					<< (long long) it.second.m_duration
-					<< (long long) it.second.m_servingNodeIP
-					<< (long long) it.second.m_servingNodePLMNID
-					<< (long long) it.second.m_ratingGroup
-					<< (long long) it.second.m_dataVolumeUplink
-					<< (long long) it.second.m_dataVolumeDownlink
-					<< Utils::Time_t_to_String(it.second.m_firstCDRTime);
-			dbStream.close();
->>>>>>> 395dc8537034875dc9959803af5f032d74d9dcd3
 		}
 	}
-	m_dbConnect.commit();
 }
 
 
@@ -201,14 +143,6 @@ void Aggregator::EraseAllSessions()
 {
 	for(int i = 0; i < m_sessionMapsNum; i++)
 		m_sessions[i].clear();
-}
-
-void Aggregator::CheckExportedData(AggregationTestType testType)
-{
-	otl_stream otlStream;
-	otlStream.open(1, "call CHECK_TEST_EXPORT(:testType /*long,in*/)", m_dbConnect);
-	otlStream << static_cast<long> (testType);
-	otlStream.close();
 }
 
 
