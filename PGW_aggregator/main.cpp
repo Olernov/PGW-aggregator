@@ -59,9 +59,18 @@ int main(int argc, const char* argv[])
 	try {
 		dbConnect.rlogon("aggregator/aggregator@192.168.100.109:1521/irbistst");
 		Aggregator aggregator(dbConnect);
+<<<<<<< HEAD
         Parser parser(aggregator);
         RunAllTests(parser, aggregator, dbConnect);
         dbConnect.commit();
+=======
+		aggregator.RunAllTests();
+		Parser parser(aggregator);
+		parser.SetPrintContents(true);
+		//parser.RunPerFileAggregationTest("../SampleCDR/", ".dat");
+		parser.RunTotalAggregationTest("../SampleCDR/", ".dat");
+		dbConnect.commit();
+>>>>>>> 395dc8537034875dc9959803af5f032d74d9dcd3
 		dbConnect.logoff();
 	}
 	catch(otl_exception& otlEx) {
