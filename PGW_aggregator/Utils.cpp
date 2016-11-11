@@ -3,21 +3,64 @@
 #include "Utils.h"
 #include "Common.h"
 
-unsigned long long Utils::TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDString)
+
+
+std::string Utils::TBCDString_to_String(const TBCD_STRING_t* pTBCDString)
 {
-	//TBCD-STRING ::= OCTET STRING
-	//	-- This type (Telephony Binary Coded Decimal String) is used to
-	//	-- represent several digits from 0 through 9, *, #, a, b, c, two
-	//	-- digits per octet, each digit encoded 0000 to 1001 (0 to 9),
-	//	-- 1010 (*), 1011 (#), 1100 (a), 1101 (b) or 1110 (c); 1111 used
-	//	-- as filler when there is an odd number of digits.
+    //TBCD-STRING ::= OCTET STRING
+    //	-- This type (Telephony Binary Coded Decimal String) is used to
+    //	-- represent several digits from 0 through 9, *, #, a, b, c, two
+    //	-- digits per octet, each digit encoded 0000 to 1001 (0 to 9),
+    //	-- 1010 (*), 1011 (#), 1100 (a), 1101 (b) or 1110 (c); 1111 used
+    //	-- as filler when there is an odd number of digits.
+    //	-- bits 8765 of octet n encoding digit 2n
+    //	-- bits 4321 of octet n encoding digit 2(n-1) +1
 
-	//	-- bits 8765 of octet n encoding digit 2n
-	//	-- bits 4321 of octet n encoding digit 2(n-1) +1
+    std::string result;
+    if (!pTBCDString) {
+        return result;
+    }
+    result.reserve(pTBCDString->size * 2);
+    for(int i = 0; i < pTBCDString->size; i++) {
+        uint8_t next = pTBCDString->buf[i] & 0x0F;
+        if (next != 0x0F) {
+            result.push_back(DecodeTbcdDigit(next));
+        }
+        next = (pTBCDString->buf[i] & 0xF0) >> 4;
+        if (next != 0x0F) {
+            result.push_back(DecodeTbcdDigit(next));
+        }
+    }
+    return result;
+}
 
+char Utils::DecodeTbcdDigit(uint8_t digit)
+{
+    if (digit >= 0 && digit <= 9) {
+        return '0' + digit;
+    }
+    switch(digit) {
+    case 0x0A:
+        return '*';
+    case 0x0B:
+        return '#';
+    case 0x0C:
+        return 'a';
+    case 0x0D:
+        return 'b';
+    case 0x0E:
+        return 'c';
+    default:
+        return ' ';
+    }
+}
+
+
+unsigned64 Utils::TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDString)
+{
 	if (!pTBCDString)
 		return emptyValueULL;
-	unsigned long long res = 0;
+    unsigned64 res = 0;
     for(int i = 0; i < pTBCDString->size; i++) {
 		uint8_t next = pTBCDString->buf[i] & 0x0F;
 		if (next >= 0 && next <= 9) {
@@ -36,48 +79,12 @@ unsigned long long Utils::TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDStri
 }
 
 
-bool Utils::TBCDString_to_ULongLong_Test()
-{
-	const int test_string_len = 8;
-	const char* test_strings[] =
-		{ "\x52\x00\x70\x72\x86\x45\x38\xf0",
-		  "\x52\x00\x70\x72\x86\x45\x38\x80",
-		  "\x52\xa0\x7b\xc2\x89\x45\x38\x10",
-		  "\x00\xab\xcd\x72\xf1\xd3\x38\xf0",
-		  NULL };
-	const unsigned long long correct_results [] =
-		{ 250007276854830ULL,
-		  2500072768548308ULL,
-		  2507298548301ULL,
-		  2713830ULL,
-		  0ULL };
-	bool success = true;
 
-	int i = 0;
-	for (const char* testStr : test_strings) {
-		TBCD_STRING_t* pTBCDString = OCTET_STRING_new_fromBuf(&asn_DEF_TBCD_STRING,
-			testStr, test_string_len);
-		unsigned long long res = TBCDString_to_ULongLong(pTBCDString);
-		if (res != correct_results[i]) {
-            std::cout << "TBCDString_to_LongLong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
-               << " but returned " << res << std::endl;
-			success = false;
-		}
-		else {
-            std::cout << "TBCDString_to_LongLong_Test #" << i + 1 << " PASSED. " << std::endl;
-		}
-		ASN_STRUCT_FREE(asn_DEF_TBCD_STRING, pTBCDString);
-		i++;
-	}
-	return success;
-}
-
-
-unsigned long Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
+unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 {
 	if (!pIPAddress)
         throw std::string("Empty IP address given (NULL pointer)");
-	unsigned long ip_addr_ulong = 0;
+    unsigned32 ip_addr_ulong = 0;
     std::string textIP;
 	size_t prev_pos = 0, next_pos = 0;
 	unsigned int next_octet; // not uint8_t cause we will control 8-bit overflow
@@ -140,66 +147,7 @@ unsigned long Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 }
 
 
-bool Utils::IPAddress_to_ULong_Test()
-{
-	const IPAddress test_ips[] = {
-		{IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xB9\x06\x50\x0A", 4)}}},
-		{IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF", 4)}}},
-		{IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8)}}},
-		{IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV6Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF", 4)}}},
-		{IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_NOTHING,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "", 0)}}},
-		{IPAddress_PR_NOTHING, {IPBinaryAddress_PR_iPBinV4Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xB9\x06\x50\x0A", 4)}}},
-		{IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "172.18.1.0", 10)}}}},
-		{IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "1.18.99.255", 11)}}}},
-		{IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "11899.255", 9)}}}},
-		{IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV6Address,
-										{*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "172.18.1.0", 10)}}}}
-	};
-	const unsigned long long exception_sign = 0xFFFFFFFFFFFFFFFF;
-	const unsigned long long correct_results [] =
-		{ 0xB906500A, 0xFFFFFFFF, exception_sign, exception_sign, emptyValueUL, exception_sign, 0xAC120100, 0x011263FF, exception_sign, exception_sign };
-	bool success = true;
-
-	int i = 0;
-	for (/*int i = 0; i < test_num; i++*/const IPAddress& testIPAddr : test_ips) {
-		try {
-			unsigned long res = IPAddress_to_ULong(&testIPAddr);
-			if (res != correct_results[i]) {
-                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
-                   << " but returned " << res << std::endl;
-				success = false;
-			}
-			else {
-                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED. " << std::endl;
-			}
-		}
-        catch(const std::string& exc_text) {
-			if (correct_results[i] == exception_sign) {
-                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED (exception caught: "
-                          << exc_text << "). " << std::endl;
-			}
-			else {
-                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED (exception caught: "
-                          << exc_text << ")." << std::endl;
-				success = false;
-			}
-		}
-		i++;
-	}
-	return success;
-}
-
-
-std::string Utils::BinIPAddress_to_Text(unsigned long ipAddress)
+std::string Utils::BinIPAddress_to_Text(unsigned32 ipAddress)
 {
 	std::string textIP;
 	while(ipAddress > 0) {
@@ -228,7 +176,7 @@ std::string Utils::PrintBinaryDump(const OCTET_STRING* pOctetStr)
 
 }
 
-unsigned long Utils::PLMNID_to_ULong(const PLMN_Id_t* pPLMNID)
+unsigned32 Utils::PLMNID_to_ULong(const PLMN_Id_t* pPLMNID)
 {
 	//PLMN-Id ::= OCTET STRING (SIZE (3))
 	//	-- The internal structure is defined as follows:
@@ -246,7 +194,7 @@ unsigned long Utils::PLMNID_to_ULong(const PLMN_Id_t* pPLMNID)
 	if (pPLMNID->size != 3) {
         throw std::string("Wrong PLMN-ID given: ") + PrintBinaryDump(pPLMNID);
 	}
-	unsigned long plmnID =
+    unsigned32 plmnID =
 		(pPLMNID->buf[0] & 0x0F) * 10000 + ((pPLMNID->buf[0] & 0xF0) >> 4) * 1000 +
 		(pPLMNID->buf[1] & 0x0F) * 100// MCC
 		+  (pPLMNID->buf[2] & 0x0F) * 10 + ((pPLMNID->buf[2] & 0xF0) >> 4); // MNC
@@ -259,65 +207,9 @@ unsigned long Utils::PLMNID_to_ULong(const PLMN_Id_t* pPLMNID)
 }
 
 
-bool Utils::PLMNID_to_ULong_Test()
+unsigned32 Utils::BCDString_to_ULong(const uint8_t* pOctetStr, int size)
 {
-	//const int test_string_len = 8;
-	const unsigned long exception_flag = 0xFFFFFFFF;
-	const char* test_strings[] =
-		// NOTE: don't use strings having \x00 byte 'cause strlen is used in code below
-		{ "\x52\xF0\x72",
-		  "\x22\xF2\x10",
-		  "\x52\x53\x72",
-		  "\x10\xab\xcd\x72\xf1\xd3\x38\xf0",
-		"\x86",
-		  NULL };
-	const unsigned long long correct_results [] =
-		{ 25027UL,
-		  22201UL,
-		  253275UL,
-		  exception_flag,
-		  exception_flag,
-		  exception_flag };
-	bool success = true;
-
-	int i = 0;
-	for (const char* testStr : test_strings) {
-		PLMN_Id_t* pPLMNID;
-		if (testStr)
-			pPLMNID = OCTET_STRING_new_fromBuf(&asn_DEF_PLMN_Id, testStr, strlen(testStr));
-		else
-			pPLMNID = NULL;
-		unsigned long res;
-		try {
-			res = PLMNID_to_ULong(pPLMNID);
-			if (res == correct_results[i]) {
-                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED. " << std::endl;
-			}
-			else {
-                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
-                   << " but returned " << res << std::endl;
-				success = false;
-			}
-		}
-        catch(const std::string& exc_text) {
-			if (correct_results[i] == exception_flag) {
-                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED (exception caught: " << exc_text << "). " << std::endl;
-			}
-			else {
-                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED (exception caught: " << exc_text << "). " << std::endl;
-				success = false;
-			}
-		}
-		ASN_STRUCT_FREE(asn_DEF_PLMN_Id, pPLMNID);
-		i++;
-	}
-	return success;
-}
-
-
-unsigned long Utils::BCDString_to_ULong(const uint8_t* pOctetStr, int size)
-{
-	unsigned long result = 0;
+    unsigned32 result = 0;
 	for (int i = 0; i < size; i++)	{
 		result += (pOctetStr[i] & 0x0F) + ((pOctetStr[i] & 0xF0) >> 4) * 10;
 	}
@@ -369,9 +261,9 @@ std::string Utils::Time_t_to_String(time_t timeT)
 }
 
 
-std::map<unsigned long, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord)
+std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord)
 {
-    std::map<unsigned long, DataVolumes> dataVolumes;
+    std::map<unsigned32, DataVolumes> dataVolumes;
     for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
         auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
         if (it != dataVolumes.end()) {
@@ -394,6 +286,194 @@ std::map<unsigned long, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PG
 }
 
 
+bool Utils::TBCDString_to_String_Test()
+{
+    const int test_string_len = 8;
+    const char* test_strings[] =
+        { "\x52\x00\x70\x72\x86\x45\x38\xf0",
+          "\x52\x00\x70\x72\x86\x45\x38\x80",
+          "\x52\xa0\x7b\xc2\x8d\xe5\x38\x10",
+          "\x00\xab\xcd\x72\xf1\xd3\x38\xf0",
+          NULL };
+    const std::string correct_results [] =
+        { "250007276854830",
+          "2500072768548308",
+          "250*#72ab85c8301",
+          "00#*ba2713b830",
+          "" };
+    bool success = true;
+
+    int i = 0;
+    for (const char* testStr : test_strings) {
+        TBCD_STRING_t* pTBCDString = OCTET_STRING_new_fromBuf(&asn_DEF_TBCD_STRING,
+            testStr, test_string_len);
+        std::string res = TBCDString_to_String(pTBCDString);
+        if (res != correct_results[i]) {
+            std::cout << "TBCDString_to_String #" << i + 1 << " FAILED. correct result: " << correct_results[i]
+               << " but returned " << res << std::endl;
+            success = false;
+        }
+        else {
+            std::cout << "TBCDString_to_String #" << i + 1 << " PASSED. " << std::endl;
+        }
+        ASN_STRUCT_FREE(asn_DEF_TBCD_STRING, pTBCDString);
+        i++;
+    }
+    return success;
+}
+
+
+bool Utils::TBCDString_to_ULongLong_Test()
+{
+    const int test_string_len = 8;
+    const char* test_strings[] =
+        { "\x52\x00\x70\x72\x86\x45\x38\xf0",
+          "\x52\x00\x70\x72\x86\x45\x38\x80",
+          "\x52\xa0\x7b\xc2\x89\x45\x38\x10",
+          "\x00\xab\xcd\x72\xf1\xd3\x38\xf0",
+          NULL };
+    const unsigned64 correct_results [] =
+        { 250007276854830ULL,
+          2500072768548308ULL,
+          2507298548301ULL,
+          2713830ULL,
+          0ULL };
+    bool success = true;
+
+    int i = 0;
+    for (const char* testStr : test_strings) {
+        TBCD_STRING_t* pTBCDString = OCTET_STRING_new_fromBuf(&asn_DEF_TBCD_STRING,
+            testStr, test_string_len);
+        unsigned64 res = TBCDString_to_ULongLong(pTBCDString);
+        if (res != correct_results[i]) {
+            std::cout << "TBCDString_to_LongLong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
+               << " but returned " << res << std::endl;
+            success = false;
+        }
+        else {
+            std::cout << "TBCDString_to_LongLong_Test #" << i + 1 << " PASSED. " << std::endl;
+        }
+        ASN_STRUCT_FREE(asn_DEF_TBCD_STRING, pTBCDString);
+        i++;
+    }
+    return success;
+}
+
+bool Utils::PLMNID_to_ULong_Test()
+{
+    //const int test_string_len = 8;
+    const unsigned32 exception_flag = 0xFFFFFFFF;
+    const char* test_strings[] =
+        // NOTE: don't use strings having \x00 byte 'cause strlen is used in code below
+        { "\x52\xF0\x72",
+          "\x22\xF2\x10",
+          "\x52\x53\x72",
+          "\x10\xab\xcd\x72\xf1\xd3\x38\xf0",
+        "\x86",
+          NULL };
+    const unsigned64 correct_results [] =
+        { 25027UL,
+          22201UL,
+          253275UL,
+          exception_flag,
+          exception_flag,
+          exception_flag };
+    bool success = true;
+
+    int i = 0;
+    for (const char* testStr : test_strings) {
+        PLMN_Id_t* pPLMNID;
+        if (testStr)
+            pPLMNID = OCTET_STRING_new_fromBuf(&asn_DEF_PLMN_Id, testStr, strlen(testStr));
+        else
+            pPLMNID = NULL;
+        unsigned32 res;
+        try {
+            res = PLMNID_to_ULong(pPLMNID);
+            if (res == correct_results[i]) {
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED. " << std::endl;
+            }
+            else {
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
+                   << " but returned " << res << std::endl;
+                success = false;
+            }
+        }
+        catch(const std::string& exc_text) {
+            if (correct_results[i] == exception_flag) {
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED (exception caught: " << exc_text << "). " << std::endl;
+            }
+            else {
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED (exception caught: " << exc_text << "). " << std::endl;
+                success = false;
+            }
+        }
+        ASN_STRUCT_FREE(asn_DEF_PLMN_Id, pPLMNID);
+        i++;
+    }
+    return success;
+}
+
+
+bool Utils::IPAddress_to_ULong_Test()
+{
+    const IPAddress test_ips[] = {
+        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xB9\x06\x50\x0A", 4)}}},
+        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF", 4)}}},
+        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8)}}},
+        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV6Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF", 4)}}},
+        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_NOTHING,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "", 0)}}},
+        {IPAddress_PR_NOTHING, {IPBinaryAddress_PR_iPBinV4Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xB9\x06\x50\x0A", 4)}}},
+        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "172.18.1.0", 10)}}}},
+        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "1.18.99.255", 11)}}}},
+        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "11899.255", 9)}}}},
+        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV6Address,
+                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "172.18.1.0", 10)}}}}
+    };
+    const unsigned64 exception_sign = 0xFFFFFFFFFFFFFFFF;
+    const unsigned64 correct_results [] =
+        { 0xB906500A, 0xFFFFFFFF, exception_sign, exception_sign, emptyValueUL, exception_sign, 0xAC120100, 0x011263FF, exception_sign, exception_sign };
+    bool success = true;
+
+    int i = 0;
+    for (/*int i = 0; i < test_num; i++*/const IPAddress& testIPAddr : test_ips) {
+        try {
+            unsigned32 res = IPAddress_to_ULong(&testIPAddr);
+            if (res != correct_results[i]) {
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED. correct result: " << correct_results[i]
+                   << " but returned " << res << std::endl;
+                success = false;
+            }
+            else {
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED. " << std::endl;
+            }
+        }
+        catch(const std::string& exc_text) {
+            if (correct_results[i] == exception_sign) {
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED (exception caught: "
+                          << exc_text << "). " << std::endl;
+            }
+            else {
+                std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED (exception caught: "
+                          << exc_text << ")." << std::endl;
+                success = false;
+            }
+        }
+        i++;
+    }
+    return success;
+}
+
+
 bool Utils::SumDataVolumesByRatingGroup_Test()
 {
     bool success = true;
@@ -407,6 +487,7 @@ bool Utils::SumDataVolumesByRatingGroup_Test()
 bool Utils::RunAllTests()
 {
 	assert(Utils::TBCDString_to_ULongLong_Test());
+    assert(Utils::TBCDString_to_String_Test());
 	assert(Utils::IPAddress_to_ULong_Test());
 	assert(Utils::PLMNID_to_ULong_Test());
 }

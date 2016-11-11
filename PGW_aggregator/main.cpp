@@ -2,7 +2,6 @@
 #include <cassert>
 //#include <boost/lockfree/queue.hpp>
 
-#include "ConfigContainer.h"
 #include "GPRSRecord.h"
 #include "OTL_Header.h"
 #include "Utils.h"
@@ -14,9 +13,11 @@
 #define LOG_ERROR 3
 
 
-void log(short msgType, string msgText)
+Config config;
+
+void log(short msgType, std::string msgText)
 {
-    cout << msgText << endl;
+    std::cout << msgText << std::endl;
 }
 
 
@@ -27,41 +28,56 @@ void ClearTestExportTable(otl_connect& dbConnect)
     dbStream.close();
 }
 
+void CheckExportedData(otl_connect& dbConnect, AggregationTestType testType)
+{
+    otl_stream otlStream;
+    otlStream.open(1, "call CHECK_TEST_EXPORT(:testType /*long,in*/)", dbConnect);
+    otlStream << static_cast<long> (testType);
+    otlStream.close();
+}
 
-void RunAllTests(Parser& parser, Aggregator& aggregator, otl_connect& dbConnect)
+
+
+void RunAllTests(otl_connect& dbConnect)
 {
     Utils::RunAllTests();
 
     std::string sampleCdrDirectory("../SampleCDR/");
     std::string cdrExtension(".dat");
-    ClearTestExportTable(dbConnect);
+    //ClearTestExportTable(dbConnect);
     // uncomment if printing file contents neeeded:
     //parser.SetPrintContents(true);
-    parser.ProcessDirectory(sampleCdrDirectory, cdrExtension, perFileTest);
-    std::cout << "Checking exported data ..." << endl;
-    aggregator.CheckExportedData(perFileTest);
-    std::cout << "Per file aggregation test PASSED." << endl;
 
-    ClearTestExportTable(dbConnect);
-    parser.ProcessDirectory(sampleCdrDirectory, cdrExtension, totalTest);
-    std::cout << "Exporting sessions ..." << endl;
-    aggregator.ExportAllSessionsToDB("");
-    std::cout << "Checking exported data ..." << endl;
-    aggregator.CheckExportedData(totalTest);
-    std::cout << "Total aggregation test PASSED." << endl;
+    {
+        Parser parser;
+        parser.ProcessDirectory(sampleCdrDirectory, cdrExtension, perFileTest);
+    }
+
+    //std::cout << "Checking exported data ..." << endl;
+    //CheckExportedData(dbConnect, perFileTest);
+//    std::cout << "Per file aggregation test PASSED." << std::endl;
+
+//    ClearTestExportTable(dbConnect);
+//    {
+//        Parser parser;
+//        parser.ProcessDirectory(sampleCdrDirectory, cdrExtension, totalTest);
+//        std::cout << "Exporting sessions ..." << std::endl;
+//        parser.ExportAllSessionsToDB("");
+//    }
+    //std::cout << "Checking exported data ..." << std::endl;
+    CheckExportedData(dbConnect,totalTest);
+    std::cout << "Total aggregation test PASSED." << std::endl;
 }
-
 
 
 int main(int argc, const char* argv[])
 {
-    otl_connect::otl_initialize();
+    const int OTL_MULTITHREADED_MODE = 1;
+    otl_connect::otl_initialize(OTL_MULTITHREADED_MODE);
 	otl_connect dbConnect;
 	try {
-		dbConnect.rlogon("aggregator/aggregator@192.168.100.109:1521/irbistst");
-		Aggregator aggregator(dbConnect);
-        Parser parser(aggregator);
-        RunAllTests(parser, aggregator, dbConnect);
+        dbConnect.rlogon(config.connectString.c_str());
+        RunAllTests(dbConnect);
         dbConnect.commit();
 		dbConnect.logoff();
 	}

@@ -1,17 +1,30 @@
 #include <memory>
 #include <boost/filesystem.hpp>
+#include "Utils.h"
 #include "Parser.h"
 #include "GPRSRecord.h"
 
 using namespace boost;
 
-Parser::Parser(const Aggregator& aggregator) :
-	m_aggregator(const_cast<Aggregator&> (aggregator)),
-    m_cdrQueue(cdrQueueSize),
-	m_printFileContents(false)
-{}
+extern Config config;
+
+Parser::Parser() :
+    stopFlag(false),
+    printFileContents(false)
+{
+    aggregators.reserve(config.sessionsNum);
+    for (int i =0; i < config.sessionsNum; i++) {
+        aggregators.push_back(Aggregator_ptr(new Aggregator()));
+    }
+}
 
 
+Parser::~Parser()
+{
+    for(auto agr : aggregators) {
+        agr.get()->SetStopFlag();
+    }
+}
 
 void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExtension,
 							  AggregationTestType testType = noTest)
@@ -33,15 +46,16 @@ void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExte
                     std::cout << "Parsing file " << dirIterator->path().filename().string() << "..." << std::endl;
                 }
                 ParseFile(dirIterator->path().string());
-                ProcessCDRQueue();
                 if (testType != noTest) {
                     std::cout << "File " << dirIterator->path().filename().string() << " parsed" << std::endl;
                 }
-				if (testType == perFileTest) {
-                    std::cout << "Exporting sessions ..." << std::endl;
-					m_aggregator.ExportAllSessionsToDB(dirIterator->path().filename().string());
-					m_aggregator.EraseAllSessions();
-				}
+//				if (testType == perFileTest) {
+//                    std::cout << "Exporting sessions ..." << std::endl;
+//                    for (int i = 0; i < config.sessionsNum; i++) {
+//                        aggregators[i].get()->ExportAllSessionsToDB(dirIterator->path().filename().string());
+//                        aggregators[i].get()->EraseAllSessions();
+//                    }
+//				}
 			}
 		}
 	}
@@ -59,7 +73,7 @@ void Parser::ParseFile(std::string filename)
         throw std::string ("Unable to open input file ") + filename;
 
     fseek(pgwFile, 0, SEEK_END);
-    unsigned long pgwFileLen = ftell(pgwFile); // длина данных файла (без заголовка)
+    unsigned32 pgwFileLen = ftell(pgwFile); // длина данных файла (без заголовка)
     std::unique_ptr<unsigned char[]> buffer (new unsigned char [pgwFileLen]);
     fseek(pgwFile, 0, SEEK_SET);
     size_t bytesRead = fread(buffer.get(), 1, pgwFileLen, pgwFile);
@@ -69,55 +83,62 @@ void Parser::ParseFile(std::string filename)
     }
 
     FILE* fileContents = NULL;
-    if (m_printFileContents)
+    if (printFileContents) {
         fileContents = fopen (std::string(filename + "_contents.txt").c_str(), "w");
+    }
 
     asn_dec_rval_t rval;
-    unsigned long nextChunk = 0;
-    unsigned long recordCount = 0;
+    unsigned32 nextChunk = 0;
+    unsigned32 recordCount = 0;
     const int maxPGWRecordSize = 2000;
     while(nextChunk < bytesRead) {
-        GPRSRecord* pGprsRecord = NULL;
-        rval = ber_decode(0, &asn_DEF_GPRSRecord, (void**) &pGprsRecord, buffer.get() + nextChunk, maxPGWRecordSize);
+        GPRSRecord* gprsRecord = nullptr;
+        rval = ber_decode(0, &asn_DEF_GPRSRecord, (void**) &gprsRecord, buffer.get() + nextChunk, maxPGWRecordSize);
         if(rval.code != RC_OK) {
             if (fileContents)
                 fclose(fileContents);
-            throw std::string("Error while decoding ASN file. Error code ") + std::to_string(rval.code);
+            throw std::runtime_error("Error while decoding ASN file. Error code " + std::to_string(rval.code));
         }
-
-        if (m_printFileContents && fileContents != NULL) {
-            asn_fprint(fileContents, &asn_DEF_GPRSRecord, pGprsRecord);
-
+        if (printFileContents && fileContents != NULL) {
+            asn_fprint(fileContents, &asn_DEF_GPRSRecord, gprsRecord);
         }
         nextChunk += rval.consumed;
-        recordCount++;
-
-
-        if (!m_cdrQueue.push(pGprsRecord)) {
-            // TODO: for fixed size queue it's normal, just means that the queue is full
-            // Process it correctly (sleep or something)
-            throw std::string("Unable to add CDR to queue");
+        if (gprsRecord->present == GPRSRecord_PR_pGWRecord) {
+            GetAppropiateAggregator(gprsRecord).AddCdrToQueue(gprsRecord);
         }
+        recordCount++;
     }
-    if (fileContents)
+    if (fileContents) {
         fclose(fileContents);
-
+    }
 }
 
 
-void Parser::ProcessCDRQueue()
+Aggregator& Parser::GetAppropiateAggregator(const GPRSRecord* gprsRecord)
 {
-    while (!m_cdrQueue.empty()) {
-        GPRSRecord* gprsRecord;
-        if (m_cdrQueue.pop(gprsRecord)) {
-            m_aggregator.ProcessCDR(gprsRecord->choice.pGWRecord);
-            ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
-        }
-    }
+    unsigned64 imsi = Utils::TBCDString_to_ULongLong(gprsRecord->choice.pGWRecord.servedIMSI);
+    return *aggregators[imsi % config.sessionsNum].get();
 }
 
 
 void Parser::SetPrintContents(bool printContents)
 {
-	m_printFileContents = printContents;
+    printFileContents = printContents;
+}
+
+
+//void Parser::ExportAllSessionsToDB()
+//{
+//    for (auto& agr : aggregators) {
+//        agr.get()->ExportAllSessionsToDB(filename);
+//    }
+//}
+
+
+void Parser::SetStopFlag()
+{
+    stopFlag = true;
+    for (auto& agr : aggregators) {
+        agr.get()->SetStopFlag();
+    }
 }

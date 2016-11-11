@@ -7,19 +7,65 @@
 
 ExportRules exportRules;
 
-Aggregator::Aggregator(otl_connect& dbConnect) :
-	m_dbConnect(dbConnect),
-    m_sessionMapsNum(defaultSessionMapsNum)
-{
+extern Config config;
 
+Aggregator::Aggregator() :
+    cdrQueue(cdrQueueSize),
+    stopFlag(false)
+{
+    //otl_connect::otl_initialize();
+    dbConnect.rlogon(config.connectString.c_str());
+    thread = std::thread(&Aggregator::AggregateCDRsFromQueue, this);
+}
+
+Aggregator::~Aggregator()
+{
+    stopFlag = true;
+    thread.join();
+    ExportAllSessionsToDB();
+    dbConnect.commit();
+    dbConnect.logoff();
 }
 
 
-void Aggregator::SetSessionMapsNum(int num)
+void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 {
-    if ((num < 1) || (num >= maxSessionMapsNum))
-        throw std::string("Aggregator::SetSessionMapsNum: invalid num given");
-	m_sessionMapsNum = num;
+    if (!cdrQueue.push(const_cast<GPRSRecord*>(gprsRecord))) {
+        // TODO: for fixed size queue it's normal, just means that the queue is full
+        // Process it correctly (sleep or something)
+
+        //throw std::runtime_error("Unable to push CDR to queue");
+        std::cout << "CDR queue is full. Sleeping 3 sec..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
+}
+
+
+void Aggregator::AggregateCDRsFromQueue()
+{
+    while (!(stopFlag && cdrQueue.empty())) {
+        try {
+            GPRSRecord* gprsRecord;
+            if (cdrQueue.pop(gprsRecord)) {
+                ProcessCDR(gprsRecord->choice.pGWRecord);
+                ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
+            }
+            else {
+                std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenCdrQueueIsEmpty));
+            }
+        }
+        catch(const otl_exception& ex) {
+            // TODO: add correct processing
+            dbConnect.rollback();
+            std::cout << "DB error: " << std::endl
+                 << ex.msg << std::endl
+                 << ex.stm_text << std::endl
+                 << ex.var_info << std::endl;
+        }
+        catch(const std::exception& ex) {
+
+        }
+    }
 }
 
 
@@ -37,8 +83,7 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
 		// process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
         DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(pGWRecord);
 		// try to find sessions having this Charging ID in appropriate map (by hash of IMSI)
-		auto eqRange = GetAppropriateMap(Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI)).equal_range(
-					pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
+        auto eqRange = sessions.equal_range(pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
 		if (eqRange.first == eqRange.second) {
 			// not found
              CreateSessionsAndExport(pGWRecord, dataVolumes);
@@ -78,17 +123,17 @@ void Aggregator::CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataV
 }
 
 
-SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsigned long ratingGroup,
-							   unsigned long volumeUplink, unsigned long volumeDownlink)
+SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsigned32 ratingGroup,
+                               unsigned32 volumeUplink, unsigned32 volumeDownlink)
 {
-	unsigned long long imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
-    return GetAppropriateMap(imsi).insert(std::make_pair(pGWRecord.chargingID,
-        std::shared_ptr<Session> (new Session(
+    unsigned64 imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
+    return sessions.insert(std::make_pair(pGWRecord.chargingID,
+        Session_ptr(new Session(
            pGWRecord.chargingID,
            imsi,
 		   Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN),
-		   Utils::TBCDString_to_ULongLong(pGWRecord.servedIMEISV),
-		   (pGWRecord.accessPointNameNI ? (const char*) pGWRecord.accessPointNameNI->buf : ""),
+           Utils::TBCDString_to_String(pGWRecord.servedIMEISV),
+           (pGWRecord.accessPointNameNI ? reinterpret_cast<const char*>(pGWRecord.accessPointNameNI->buf) : ""),
 		   pGWRecord.duration,
 		   Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress.list.array[0]),
 		   Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
@@ -101,58 +146,33 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 
 void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
-    if (! GetExportQueue(sessionPtr).push(sessionPtr.get())) {
-        // TODO: normal situation, add correct processing
-        throw std::string("ExportQueue is full");
-    }
-}
-
-
-SessionMap& Aggregator::GetAppropriateMap(unsigned long long imsi)
-{
-    return m_sessions[imsi % m_sessionMapsNum];
-}
-
-
-ExportQueue& Aggregator::GetExportQueue(Session_ptr sessionPtr)
-{
-    return m_exportQueue[sessionPtr.get()->GetIMSI() % m_sessionMapsNum];
+    sessionPtr.get()->ExportToDB(dbConnect);
 }
 
 
 void Aggregator::PrintSessions()
 {
-	for (int i = 0; i < m_sessionMapsNum; i++)
-		for (auto& it : m_sessions[i]) {
-            it.second.get()->PrintSessionData(std::cout);
-		}
+    for (auto& it : sessions) {
+        it.second.get()->PrintSessionData(std::cout);
+    }
 }
 
 
-void Aggregator::ExportAllSessionsToDB(std::string filename)
+void Aggregator::ExportAllSessionsToDB()
 {
-	for (int i = 0; i < m_sessionMapsNum; i++) {
-		for (auto& it : m_sessions[i]) {
-            it.second.get()->ExportToTestTable(m_dbConnect, filename);
-		}
-	}
+    for (auto& it : sessions) {
+        it.second.get()->ExportToDB(dbConnect);
+    }
 }
 
 
 void Aggregator::EraseAllSessions()
 {
-	for(int i = 0; i < m_sessionMapsNum; i++)
-		m_sessions[i].clear();
+    sessions.clear();
 }
 
 
-void Aggregator::CheckExportedData(AggregationTestType testType)
+void Aggregator::SetStopFlag()
 {
-	otl_stream otlStream;
-    otlStream.open(1, "call CHECK_TEST_EXPORT(:testType /*long,in*/)", m_dbConnect);
-	otlStream << static_cast<long> (testType);    
-	otlStream.close();
+    stopFlag = true;
 }
-
-
-

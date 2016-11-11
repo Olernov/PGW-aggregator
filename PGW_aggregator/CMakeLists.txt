@@ -24,6 +24,3 @@ target_link_libraries (${PROJECT_NAME} libboost_system.so)
 target_link_libraries (${PROJECT_NAME} libboost_filesystem.so)
 
 
-
-
-

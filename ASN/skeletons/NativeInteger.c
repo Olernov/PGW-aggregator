@@ -107,7 +107,7 @@ NativeInteger_decode_ber(asn_codec_ctx_t *opt_codec_ctx,
 		tmp.size = length;
 
 		if((specs&&specs->field_unsigned)
-			? asn_INTEGER2ulong(&tmp, (unsigned long *)&l) /* sic */
+            ? asn_INTEGER2ulong(&tmp, (unsigned long *)&l) /* sic */
 			: asn_INTEGER2long(&tmp, &l)) {
 			rval.code = RC_FAIL;
 			rval.consumed = 0;
@@ -133,7 +133,7 @@ asn_enc_rval_t
 NativeInteger_encode_der(asn_TYPE_descriptor_t *sd, void *ptr,
 	int tag_mode, ber_tlv_tag_t tag,
 	asn_app_consume_bytes_f *cb, void *app_key) {
-	unsigned long native = *(unsigned long *)ptr;	/* Disable sign ext. */
+    unsigned long native = *(unsigned long *)ptr;	/* Disable sign ext. */
 	asn_enc_rval_t erval;
 	INTEGER_t tmp;
 
@@ -187,7 +187,7 @@ NativeInteger_decode_xer(asn_codec_ctx_t *opt_codec_ctx,
 	if(rval.code == RC_OK) {
 		long l;
 		if((specs&&specs->field_unsigned)
-			? asn_INTEGER2ulong(&st, (unsigned long *)&l) /* sic */
+            ? asn_INTEGER2ulong(&st, (unsigned long *)&l) /* sic */
 			: asn_INTEGER2long(&st, &l)) {
 			rval.code = RC_FAIL;
 			rval.consumed = 0;
@@ -255,7 +255,7 @@ NativeInteger_decode_uper(asn_codec_ctx_t *opt_codec_ctx,
 				   &tmpintptr, pd);
 	if(rval.code == RC_OK) {
 		if((specs&&specs->field_unsigned)
-			? asn_INTEGER2ulong(&tmpint, (unsigned long *)native)
+            ? asn_INTEGER2ulong(&tmpint, (unsigned long *)native)
 			: asn_INTEGER2long(&tmpint, native))
 			rval.code = RC_FAIL;
 		else

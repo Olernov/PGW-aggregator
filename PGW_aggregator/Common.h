@@ -30,3 +30,18 @@ struct DataVolumes {
 };
 
 typedef std::map<unsigned long, DataVolumes> DataVolumesMap;
+
+typedef unsigned long unsigned32;
+typedef unsigned long long unsigned64;
+typedef signed long long signed64;
+
+struct Config
+{
+    Config() :
+      connectString("aggregator/aggregator@192.168.100.109:1521/irbistst"),
+      sessionsNum(8)
+    {}
+
+    std::string connectString;
+    int sessionsNum;
+};
