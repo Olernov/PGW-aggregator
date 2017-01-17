@@ -2,6 +2,7 @@
 #include <map>
 #include <memory>
 #include <thread>
+#include <mutex>
 #include "Common.h"
 #include "OTL_Header.h"
 #include "GPRSRecord.h"
@@ -15,7 +16,7 @@ typedef std::multimap<unsigned32, Session_ptr> SessionMap;
 class Aggregator
 {
 public:
-    Aggregator();
+    Aggregator(int index);
     ~Aggregator();
     void AddCdrToQueue(const GPRSRecord* gprsRecord);
     void AggregateCDRsFromQueue();
@@ -25,9 +26,11 @@ public:
 	void CheckExportedData(AggregationTestType);
     void SetStopFlag();
 private:
-    static const int cdrQueueSize = 50000;
+    static const int cdrQueueSize = 5000;
     const int secondsToSleepWhenCdrQueueIsEmpty = 3;
 
+    int sessionIndex;
+    unsigned long exportCount;
     boost::lockfree::queue<GPRSRecord*, boost::lockfree::fixed_sized<true>> cdrQueue;
     SessionMap sessions;
     std::thread thread;

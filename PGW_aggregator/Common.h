@@ -39,7 +39,8 @@ struct Config
 {
     Config() :
       connectString("aggregator/aggregator@192.168.100.109:1521/irbistst"),
-      sessionsNum(8)
+      //connectString("aggregator/AGGREGATOR@(DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST=idb-vip3)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=irbis_n)(INSTANCE_NAME=irbis3)))"),
+      sessionsNum(16)
     {}
 
     std::string connectString;

@@ -236,30 +236,61 @@ time_t Utils::Timestamp_to_time_t(const TimeStamp_t* pTimestamp)
 //-- S = Sign 0 = "+", "-" ASCII encoded
 //-- hh = hour 00 to 23 BCD encoded
 //-- mm = minute 00 to 59 BCD encoded
-	if (!pTimestamp)
+    if (!pTimestamp) {
         throw std::string("Empty Timestamp given (NULL pointer)");
-	if (pTimestamp->size != 9)
+    }
+    if (pTimestamp->size != 9) {
         throw std::string("Wrong format of Timestamp given: ") + PrintBinaryDump(pTimestamp);
+    }
 	tm result;
 	result.tm_year = 100 + BCDString_to_ULong(&pTimestamp->buf[0], 1); // years since 1900
 	result.tm_mon = BCDString_to_ULong(&pTimestamp->buf[1], 1) - 1; // months since January (0-11)
 	result.tm_mday = BCDString_to_ULong(&pTimestamp->buf[2], 1); // day of the month (1-31)
 	result.tm_hour = BCDString_to_ULong(&pTimestamp->buf[3], 1); // hours since midnight (0-23)
-	result.tm_min = BCDString_to_ULong(&pTimestamp->buf[4], 1); // minutes after the hour (0-23)
+    result.tm_min = BCDString_to_ULong(&pTimestamp->buf[4], 1); // minutes after the hour (0-59)
 	result.tm_sec = BCDString_to_ULong(&pTimestamp->buf[5], 1); // seconds after minute(0-61)
 	result.tm_wday = 0; // not used
 	result.tm_yday = 0; // not used
-	return mktime(&result);
+    result.tm_isdst = 0; //Daylight saving Time flag
+    return mktime(&result);
+}
+
+
+bool Utils::Timestamp_to_time_t_Test()
+{
+    const char *dateStr = "160530153819+0300";
+    OCTET_STRING_t* octetStr = OCTET_STRING_new_fromBuf(&asn_DEF_TimeStamp,
+        dateStr, strlen(dateStr));
 }
 
 
 std::string Utils::Time_t_to_String(time_t timeT)
 {
-	char buffer[20];
-	strftime(buffer, 20, "%Y%m%d%H%M%S", localtime(&timeT));
+    char buffer[20];
+    strftime(buffer, 20, "%Y%m%d%H%M%S", localtime(&timeT));
     return std::string(buffer);
 }
 
+
+otl_datetime Utils::
+
+
+
+
+Time_t_to_OTL_datetime(time_t timeT)
+{
+    otl_datetime otlDt;
+
+    tm tmT ;
+    localtime_r(&timeT, &tmT);
+    otlDt.year = tmT.tm_year + 1900;
+    otlDt.month = tmT.tm_mon + 1;
+    otlDt.day = tmT.tm_mday;
+    otlDt.hour = tmT.tm_hour;
+    otlDt.minute = tmT.tm_min;
+    otlDt.second = tmT.tm_sec;
+    return otlDt;
+}
 
 std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord)
 {

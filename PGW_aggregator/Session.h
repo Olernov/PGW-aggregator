@@ -22,29 +22,26 @@ public:
             unsigned64 mSISDN,
             std::string iMEI,
             std::string accessPointName,
-            unsigned32 durationAggregated,
+            unsigned32 ,
             unsigned32 servingNodeIP,
             unsigned32 servingNodePLMNID,
             unsigned32 ratingGroup,
             unsigned32 volumeUplinkAggregated,
             unsigned32 volumeDownlinkAggregated,
-            time_t firstCDRTime
+            time_t startTime
 		);
-    Session(const Session& rhs);
 
     unsigned32 GetRatingGroup();
     void ExportToDB(otl_connect& dbConnect);
-    void ExportToTestTable(otl_connect& dbConnect, const std::string& filename);
     void PrintSessionData(std::ostream& outStream);
-    void UpdateData(unsigned32 volumeUplink, unsigned32 volumeDownlink, unsigned32 durationAggregated);
+    void UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownlinkIncrease,
+                    unsigned32 durationIncrease, time_t newcdrTime);
 private:
     unsigned32 chargingID;
     unsigned64 iMSI;
     unsigned64 mSISDN;
     std::string iMEI;
     std::string accessPointName;
-    unsigned32 durationAggregated;
-    unsigned32 durationExported;
     unsigned32 servingNodeIP;
     unsigned32 servingNodePLMNID;
     unsigned32 ratingGroup;
@@ -52,14 +49,15 @@ private:
     unsigned64 volumeDownlinkAggregated;
     unsigned64 volumeUplinkExported;
     unsigned64 volumeDownlinkExported;
-    time_t firstCDRTime;
+    time_t startTime;
+    time_t endTime;
     time_t lastUpdateTime;
     time_t lastExportTime;
     time_t lastExportErrorTime;
     ExportResult exportErrorCode;
-    std::atomic<SessionStatus> status;
     bool HaveDataToExport();
 
+    const time_t notInitialized = 0;
     friend class ExportRules;
 };
 

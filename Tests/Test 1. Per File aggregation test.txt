@@ -5,6 +5,19 @@ This test processes CDR files from given sample directory. After each file it ex
 Script Sample_CDR_creation.sql must be executed created prior to running test!
 It creates tables SAMPLE_CDRS, TEST_SESSION_EXPORT, indexes and insert sample data to SAMPLE_CDRS.
 
+}
+
+
+Create aggregated sample table:
+
+create table MOBILE_SESSION_SAMPLE2 as
+select charging_id, served_imsi, served_msisdn, apn, rating_group,  serving_node_plmn_id, 
+	min(datetime) start_time, (max(datetime + duration/86400) - min(datetime)) * 86400 duration,
+	sum(volume_uplink) volume_uplink, sum(volume_downlink) volume_downlink
+	 from Aggregator.sample_cdrs 
+     group by charging_id, served_imsi, served_msisdn, apn, rating_group,  serving_node_plmn_id ;
+
+
 Results of session export are being compared to sample CDR data loaded by CDR-PGW Loader. 
 Here is the script for creating sample CDR table in Aggregator scheme from Billing scheme where CDR files are uploaded:
 

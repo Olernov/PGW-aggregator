@@ -14,20 +14,17 @@ Parser::Parser() :
 {
     aggregators.reserve(config.sessionsNum);
     for (int i =0; i < config.sessionsNum; i++) {
-        aggregators.push_back(Aggregator_ptr(new Aggregator()));
+        aggregators.push_back(Aggregator_ptr(new Aggregator(i)));
     }
 }
 
 
 Parser::~Parser()
 {
-    for(auto agr : aggregators) {
-        agr.get()->SetStopFlag();
-    }
+    SetStopFlag();
 }
 
-void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExtension,
-							  AggregationTestType testType = noTest)
+void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExtension)
 {
 	filesystem::path cdrPath(cdrFilesDirectory);
 
@@ -42,20 +39,9 @@ void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExte
 		for(filesystem::directory_iterator dirIterator(cdrPath); dirIterator != endIterator; dirIterator++) {
 			if (filesystem::is_regular_file(dirIterator->status()) &&
 					dirIterator->path().extension() == cdrExtension) {
-                if (testType != noTest) {
-                    std::cout << "Parsing file " << dirIterator->path().filename().string() << "..." << std::endl;
-                }
+                std::cout << "Parsing file " << dirIterator->path().filename().string() << "..." << std::endl;
                 ParseFile(dirIterator->path().string());
-                if (testType != noTest) {
-                    std::cout << "File " << dirIterator->path().filename().string() << " parsed" << std::endl;
-                }
-//				if (testType == perFileTest) {
-//                    std::cout << "Exporting sessions ..." << std::endl;
-//                    for (int i = 0; i < config.sessionsNum; i++) {
-//                        aggregators[i].get()->ExportAllSessionsToDB(dirIterator->path().filename().string());
-//                        aggregators[i].get()->EraseAllSessions();
-//                    }
-//				}
+                std::cout << "File " << dirIterator->path().filename().string() << " parsed" << std::endl;
 			}
 		}
 	}
@@ -69,8 +55,9 @@ void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExte
 void Parser::ParseFile(std::string filename)
 {
     FILE *pgwFile = fopen(filename.c_str(), "rb");
-    if(!pgwFile)
+    if(!pgwFile) {
         throw std::string ("Unable to open input file ") + filename;
+    }
 
     fseek(pgwFile, 0, SEEK_END);
     unsigned32 pgwFileLen = ftell(pgwFile); // длина данных файла (без заголовка)

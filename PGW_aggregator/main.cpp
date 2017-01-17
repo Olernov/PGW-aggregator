@@ -1,7 +1,5 @@
 #include <iostream>
 #include <cassert>
-//#include <boost/lockfree/queue.hpp>
-
 #include "GPRSRecord.h"
 #include "OTL_Header.h"
 #include "Utils.h"
@@ -9,8 +7,6 @@
 #include "Common.h"
 #include "Aggregator.h"
 #include "Parser.h"
-
-#define LOG_ERROR 3
 
 
 Config config;
@@ -24,48 +20,47 @@ void log(short msgType, std::string msgText)
 void ClearTestExportTable(otl_connect& dbConnect)
 {
     otl_stream dbStream;
-    dbStream.open(1, "delete from TEST_SESSION_EXPORT", dbConnect);
+    dbStream.open(1, "call Billing.Mobile_Data_Charger.ClearMobileSessions()", dbConnect);
     dbStream.close();
 }
 
-void CheckExportedData(otl_connect& dbConnect, AggregationTestType testType)
+void CheckExportedData(otl_connect& dbConnect)
 {
     otl_stream otlStream;
-    otlStream.open(1, "call CHECK_TEST_EXPORT(:testType /*long,in*/)", dbConnect);
-    otlStream << static_cast<long> (testType);
+    otlStream.open(1, "call Billing.Mobile_Data_Charger.CheckTestExport()", dbConnect);
     otlStream.close();
 }
 
+void RunStoredLogicTests(otl_connect& dbConnect)
+{
+    std::cout << "Running stored database logic tests ..." << std::endl;
+    otl_stream otlStream;
+    otlStream.open(1, "call Billing.Mobile_Data_Charger.RunAllTests()", dbConnect);
+    otlStream.close();
 
+}
 
 void RunAllTests(otl_connect& dbConnect)
 {
     Utils::RunAllTests();
+    RunStoredLogicTests(dbConnect);
 
     std::string sampleCdrDirectory("../SampleCDR/");
     std::string cdrExtension(".dat");
-    //ClearTestExportTable(dbConnect);
-    // uncomment if printing file contents neeeded:
-    //parser.SetPrintContents(true);
+    ClearTestExportTable(dbConnect);
+    dbConnect.commit();
+
+    time_t testStart = time(nullptr);
 
     {
         Parser parser;
-        parser.ProcessDirectory(sampleCdrDirectory, cdrExtension, perFileTest);
+        // uncomment if printing file contents neeeded:
+        //parser.SetPrintContents(true);
+        parser.ProcessDirectory(sampleCdrDirectory, cdrExtension);
     }
-
-    //std::cout << "Checking exported data ..." << endl;
-    //CheckExportedData(dbConnect, perFileTest);
-//    std::cout << "Per file aggregation test PASSED." << std::endl;
-
-//    ClearTestExportTable(dbConnect);
-//    {
-//        Parser parser;
-//        parser.ProcessDirectory(sampleCdrDirectory, cdrExtension, totalTest);
-//        std::cout << "Exporting sessions ..." << std::endl;
-//        parser.ExportAllSessionsToDB("");
-//    }
-    //std::cout << "Checking exported data ..." << std::endl;
-    CheckExportedData(dbConnect,totalTest);
+    std::cout << "Export consumed " << difftime(time(nullptr), testStart) << " seconds" << std::endl;
+    std::cout << "Checking exported data ..." << std::endl;
+    CheckExportedData(dbConnect);
     std::cout << "Total aggregation test PASSED." << std::endl;
 }
 

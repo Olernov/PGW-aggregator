@@ -10,7 +10,7 @@ class Parser
 public:
     Parser();
     ~Parser();
-    void ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExtension, AggregationTestType testType);
+    void ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExtension);
     void SetStopFlag();
 	void SetPrintContents(bool);
     //void ExportAllSessionsToDB(std::string filename);
