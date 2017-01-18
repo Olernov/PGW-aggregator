@@ -1,11 +1,18 @@
 #pragma once
 #include <map>
 
+
+
+typedef unsigned long unsigned32;
+typedef unsigned long long unsigned64;
+typedef signed long long signed64;
+
 const unsigned long long emptyValueULL = -1;
 const unsigned long emptyValueUL = -1;
 
 const int MAX_PGW_QUEUES = 16;
 
+const unsigned32 megabyteSizeInBytes = 1024 * 1024;
 
 enum ExportResult
 {
@@ -31,10 +38,6 @@ struct DataVolumes {
 
 typedef std::map<unsigned long, DataVolumes> DataVolumesMap;
 
-typedef unsigned long unsigned32;
-typedef unsigned long long unsigned64;
-typedef signed long long signed64;
-
 struct Config
 {
     Config() :
@@ -45,4 +48,7 @@ struct Config
 
     std::string connectString;
     int sessionsNum;
+    static const unsigned32 homePlmnID = 25027;
+    static const unsigned32 sessionIdlePeriod = 1; // TODO: debug value, change it
+    static const time_t exportRulesRefreshPeriodMin = 1; // TODO: this is for debug!
 };

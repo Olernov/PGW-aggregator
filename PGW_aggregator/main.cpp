@@ -7,9 +7,11 @@
 #include "Common.h"
 #include "Aggregator.h"
 #include "Parser.h"
+#include "ExportRules.h"
 
 
 Config config;
+ExportRules exportRules;
 
 void log(short msgType, std::string msgText)
 {
@@ -72,6 +74,7 @@ int main(int argc, const char* argv[])
 	otl_connect dbConnect;
 	try {
         dbConnect.rlogon(config.connectString.c_str());
+        exportRules.ReadSettingsFromDatabase(dbConnect);
         RunAllTests(dbConnect);
         dbConnect.commit();
 		dbConnect.logoff();

@@ -22,7 +22,7 @@ public:
             unsigned64 mSISDN,
             std::string iMEI,
             std::string accessPointName,
-            unsigned32 ,
+            unsigned32 duration,
             unsigned32 servingNodeIP,
             unsigned32 servingNodePLMNID,
             unsigned32 ratingGroup,
@@ -31,11 +31,14 @@ public:
             time_t startTime
 		);
 
-    unsigned32 GetRatingGroup();
+    inline unsigned32 GetRatingGroup() const
+        { return ratingGroup; }
     void ExportToDB(otl_connect& dbConnect);
     void PrintSessionData(std::ostream& outStream);
     void UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownlinkIncrease,
                     unsigned32 durationIncrease, time_t newcdrTime);
+    inline time_t GetLastUpdateTime() const
+        { return lastUpdateTime; }
 private:
     unsigned32 chargingID;
     unsigned64 iMSI;

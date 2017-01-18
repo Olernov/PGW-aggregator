@@ -46,6 +46,7 @@ void Session::UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownl
     if (newCdrTime + durationIncrease > endTime) {
         endTime = newCdrTime + durationIncrease;
     }
+    lastUpdateTime = time(nullptr);
 }
 
 
@@ -115,9 +116,6 @@ void Session::PrintSessionData(std::ostream& outStream)
 }
 
 
-unsigned32 Session::GetRatingGroup()
-{
-    return ratingGroup;
-}
+
 
 

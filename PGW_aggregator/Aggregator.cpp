@@ -5,7 +5,7 @@
 #include "Common.h"
 
 
-ExportRules exportRules;
+extern ExportRules exportRules;
 
 std::mutex mutex;
 
@@ -15,7 +15,8 @@ Aggregator::Aggregator(int index) :
     sessionIndex(index),
     cdrQueue(cdrQueueSize),
     stopFlag(false),
-    exportCount(0)
+    exportCount(0),
+    lastIdleSessionsEject(0)
 {
     thread = std::thread(&Aggregator::AggregateCDRsFromQueue, this);
 }
@@ -47,8 +48,15 @@ void Aggregator::AggregateCDRsFromQueue()
                 ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
             }
             else {
-                // TODO: start session map check procedures if needed
-                std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenCdrQueueIsEmpty));
+                time_t now;
+                if (Utils::DiffMinutes(time(&now), lastIdleSessionsEject) > idleSessionEjectPeriodMin) {
+                    // TODO: start session map check procedures if needed
+                    EjectIdleSessions();
+                }
+                else {
+                    // nothing to do
+                    std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenCdrQueueIsEmpty));
+                }
             }
         }
         catch(const otl_exception& ex) {
@@ -106,7 +114,7 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
                                                       dataVolumeIter->second.volumeDownlink,
                                                       pGWRecord.duration,
                                                       Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime));
-                    if (exportRules.ReadyForExport(sessionIter->second)) {
+                    if (exportRules.IsReadyForExport(sessionIter->second)) {
                         ExportSession(sessionIter->second);
                         //sessions.erase(sessionIter);
                     }
@@ -126,7 +134,7 @@ void Aggregator::CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataV
                       dataVolumeIter.first /* rating group */,
                       dataVolumeIter.second.volumeUplink,
                       dataVolumeIter.second.volumeDownlink);
-        if (exportRules.ReadyForExport(iter->second)) {
+        if (exportRules.IsReadyForExport(iter->second)) {
             ExportSession(iter->second);
             //sessions.erase(iter);
         }
@@ -177,6 +185,22 @@ void Aggregator::ExportAllSessionsToDB()
     for (auto& it : sessions) {
         ExportSession(it.second);
     }
+}
+
+
+void Aggregator::EjectIdleSessions()
+{
+ // TODO
+    std::cout << "Thread #" << sessionIndex << ": Ejecting idle sessions. Map size: " << sessions.size() << std::endl;
+    time_t now;
+    time(&now);
+    for (auto& it : sessions) {
+        if (Utils::DiffMinutes(it.second->GetLastUpdateTime(), now) > config.sessionIdlePeriod) {
+            ExportSession(it.second);
+            sessions.erase(it.first);
+        }
+    }
+    std::cout << "Thread #" << sessionIndex << ": Idle sessions ejected. Map size: " << sessions.size() << std::endl;
 }
 
 

@@ -317,6 +317,7 @@ std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRe
 }
 
 
+
 bool Utils::TBCDString_to_String_Test()
 {
     const int test_string_len = 8;

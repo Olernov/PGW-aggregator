@@ -28,6 +28,7 @@ public:
 private:
     static const int cdrQueueSize = 5000;
     const int secondsToSleepWhenCdrQueueIsEmpty = 3;
+    static const time_t idleSessionEjectPeriodMin = 1; // TODO: this is for debug!
 
     int sessionIndex;
     unsigned long exportCount;
@@ -37,11 +38,16 @@ private:
     bool stopFlag;
     otl_connect dbConnect;
 
+    std::atomic<bool> refreshInProgress;
+
+    time_t lastIdleSessionsEject;
+
     void CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
     SessionMap::iterator CreateSession(const PGWRecord& pGWRecord,
                        unsigned32 ratingGroup, unsigned32 volumeUplink, unsigned32 volumeDownlink);
     void ExportSession(Session_ptr sessionPtr);
     void ExportAllSessionsToDB();
+    void EjectIdleSessions();
 };
 
 typedef std::shared_ptr<Aggregator> Aggregator_ptr;
