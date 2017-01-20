@@ -8,10 +8,12 @@
 #include "Aggregator.h"
 #include "Parser.h"
 #include "ExportRules.h"
+#include "LogWriter.h"
 
 
 Config config;
 ExportRules exportRules;
+LogWriter logWriter;
 
 void log(short msgType, std::string msgText)
 {
@@ -47,7 +49,8 @@ void RunAllTests(otl_connect& dbConnect)
     Utils::RunAllTests();
     RunStoredLogicTests(dbConnect);
 
-    std::string sampleCdrDirectory("../SampleCDR/");
+    std::string sampleCdrDirectory("../SampleCDR2/");
+    std::string sampleCdrArchive("../Archive/");
     std::string cdrExtension(".dat");
     ClearTestExportTable(dbConnect);
     dbConnect.commit();
@@ -58,7 +61,7 @@ void RunAllTests(otl_connect& dbConnect)
         Parser parser;
         // uncomment if printing file contents neeeded:
         //parser.SetPrintContents(true);
-        parser.ProcessDirectory(sampleCdrDirectory, cdrExtension);
+        parser.ProcessDirectory(sampleCdrDirectory, cdrExtension, sampleCdrArchive);
     }
     std::cout << "Export consumed " << difftime(time(nullptr), testStart) << " seconds" << std::endl;
     std::cout << "Checking exported data ..." << std::endl;
@@ -69,6 +72,7 @@ void RunAllTests(otl_connect& dbConnect)
 
 int main(int argc, const char* argv[])
 {
+    logWriter.Initialize(false, "../Logs");
     const int OTL_MULTITHREADED_MODE = 1;
     otl_connect::otl_initialize(OTL_MULTITHREADED_MODE);
 	otl_connect dbConnect;
@@ -88,5 +92,6 @@ int main(int argc, const char* argv[])
              << otlEx.var_info << std::endl;
 		exit(-1);
 	}
+    logWriter.Stop();
     return 0;
 }

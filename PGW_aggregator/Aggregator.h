@@ -27,8 +27,7 @@ public:
     void SetStopFlag();
 private:
     static const int cdrQueueSize = 5000;
-    const int secondsToSleepWhenCdrQueueIsEmpty = 3;
-    static const time_t idleSessionEjectPeriodMin = 1; // TODO: this is for debug!
+    static const int idleSessionEjectPeriodMin = 1; // TODO: this is for debug!
 
     int sessionIndex;
     unsigned long exportCount;

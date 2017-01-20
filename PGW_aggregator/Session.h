@@ -30,15 +30,20 @@ public:
             unsigned32 volumeDownlinkAggregated,
             time_t startTime
 		);
+    unsigned32 ratingGroup;
+    time_t lastUpdateTime;
+    time_t lastExportTime;
 
-    inline unsigned32 GetRatingGroup() const
-        { return ratingGroup; }
+    //inline unsigned32 GetRatingGroup() const
+    //    { return ratingGroup; }
     void ExportToDB(otl_connect& dbConnect);
     void PrintSessionData(std::ostream& outStream);
     void UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownlinkIncrease,
                     unsigned32 durationIncrease, time_t newcdrTime);
-    inline time_t GetLastUpdateTime() const
-        { return lastUpdateTime; }
+    inline bool HaveDataToExport()
+        { return volumeUplinkAggregated>0 || volumeDownlinkAggregated>0 || endTime>startTime; }
+    //inline time_t GetLastUpdateTime() const
+    //    { return lastUpdateTime; }
 private:
     unsigned32 chargingID;
     unsigned64 iMSI;
@@ -47,18 +52,17 @@ private:
     std::string accessPointName;
     unsigned32 servingNodeIP;
     unsigned32 servingNodePLMNID;
-    unsigned32 ratingGroup;
+
     unsigned64 volumeUplinkAggregated;
     unsigned64 volumeDownlinkAggregated;
     unsigned64 volumeUplinkExported;
     unsigned64 volumeDownlinkExported;
     time_t startTime;
     time_t endTime;
-    time_t lastUpdateTime;
-    time_t lastExportTime;
-    time_t lastExportErrorTime;
-    ExportResult exportErrorCode;
-    bool HaveDataToExport();
+
+    //time_t lastExportErrorTime;
+    //ExportResult exportErrorCode;
+
 
     const time_t notInitialized = 0;
     friend class ExportRules;

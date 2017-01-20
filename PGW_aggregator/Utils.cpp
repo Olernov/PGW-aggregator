@@ -272,12 +272,7 @@ std::string Utils::Time_t_to_String(time_t timeT)
 }
 
 
-otl_datetime Utils::
-
-
-
-
-Time_t_to_OTL_datetime(time_t timeT)
+otl_datetime Utils::Time_t_to_OTL_datetime(time_t timeT)
 {
     otl_datetime otlDt;
 

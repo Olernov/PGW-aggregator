@@ -30,8 +30,7 @@ Session::Session(unsigned32 chargingID,
         startTime(cdrTime),
         endTime(cdrTime + duration),
         lastUpdateTime(time(nullptr)),
-        lastExportTime(notInitialized),
-        lastExportErrorTime(notInitialized)
+        lastExportTime(notInitialized)
 {}
 
 
@@ -89,12 +88,6 @@ void Session::ExportToDB(otl_connect& dbConnect)
         startTime = endTime = notInitialized;
         lastExportTime = time(nullptr);
     }
-}
-
-
-bool Session::HaveDataToExport()
-{
-    return volumeUplinkAggregated>0 || volumeDownlinkAggregated>0 || endTime>startTime;
 }
 
 

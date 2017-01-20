@@ -11,8 +11,11 @@ const unsigned long long emptyValueULL = -1;
 const unsigned long emptyValueUL = -1;
 
 const int MAX_PGW_QUEUES = 16;
+const int MAIN_THREAD_NUM = 0;
 
 const unsigned32 megabyteSizeInBytes = 1024 * 1024;
+const int secondsToSleepWhenNothingToDo = 3;
+const int MAX_PATH = 1000;
 
 enum ExportResult
 {
@@ -50,5 +53,5 @@ struct Config
     int sessionsNum;
     static const unsigned32 homePlmnID = 25027;
     static const unsigned32 sessionIdlePeriod = 1; // TODO: debug value, change it
-    static const time_t exportRulesRefreshPeriodMin = 1; // TODO: this is for debug!
+    static const unsigned32 exportRulesRefreshPeriodMin = 1; // TODO: this is for debug!
 };

@@ -22,7 +22,7 @@ class Utils
     static std::string Time_t_to_String(time_t timeT);
     static otl_datetime Time_t_to_OTL_datetime(time_t timeT);
     static inline double DiffMinutes(time_t start, time_t end)
-        { return (end > start ? (end - start) / 60 : (start - end) / 60); }
+        { return (end > start ? static_cast<double>(end - start) / 60 : static_cast<double>(start - end) / 60); }
     static std::map<unsigned32, DataVolumes> SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord);
 	static bool RunAllTests();
 private:

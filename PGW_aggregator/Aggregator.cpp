@@ -3,9 +3,11 @@
 #include "Utils.h"
 #include "ExportRules.h"
 #include "Common.h"
+#include "LogWriter.h"
 
 
 extern ExportRules exportRules;
+extern LogWriter logWriter;
 
 std::mutex mutex;
 
@@ -15,9 +17,9 @@ Aggregator::Aggregator(int index) :
     sessionIndex(index),
     cdrQueue(cdrQueueSize),
     stopFlag(false),
-    exportCount(0),
-    lastIdleSessionsEject(0)
+    exportCount(0)
 {
+    time(&lastIdleSessionsEject);
     thread = std::thread(&Aggregator::AggregateCDRsFromQueue, this);
 }
 
@@ -31,8 +33,9 @@ Aggregator::~Aggregator()
 void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 {
     while (!cdrQueue.push(const_cast<GPRSRecord*>(gprsRecord))) {
-        std::cout << "Thread #" << sessionIndex << ": CDR queue is full. Sleeping 3 sec..." << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        //std::cout << "Thread #" << sessionIndex << ": CDR queue is full. Sleeping ..." << std::endl;
+        logWriter.Write("CDR queue is full. Sleeping ...", sessionIndex);
+        std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
     }
 }
 
@@ -48,14 +51,13 @@ void Aggregator::AggregateCDRsFromQueue()
                 ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
             }
             else {
-                time_t now;
-                if (Utils::DiffMinutes(time(&now), lastIdleSessionsEject) > idleSessionEjectPeriodMin) {
-                    // TODO: start session map check procedures if needed
+                double d = Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) ;
+                if (Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) > idleSessionEjectPeriodMin) {
                     EjectIdleSessions();
                 }
                 else {
                     // nothing to do
-                    std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenCdrQueueIsEmpty));
+                    std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
                 }
             }
         }
@@ -68,8 +70,9 @@ void Aggregator::AggregateCDRsFromQueue()
                  << ex.var_info << std::endl;
         }
     }
-    std::cout << "Thread #" << sessionIndex << " finished processing CDR queue. Export count: " << exportCount << std::endl;
-    std::cout << "Thread #" << sessionIndex << ": exporting all sesions to DB..." << std::endl;
+    //std::cout << "Thread #" << sessionIndex << ": shutdown flag set. Export count: " << exportCount << std::endl;
+    logWriter.Write("Shutdown flag set. Exporting all remaining sessions: " + std::to_string(sessions.size()), sessionIndex);
+
     try {
         ExportAllSessionsToDB();
     }
@@ -81,7 +84,8 @@ void Aggregator::AggregateCDRsFromQueue()
              << ex.stm_text << std::endl
              << ex.var_info << std::endl;
     }
-    std::cout << "Thread #" << sessionIndex << ": export count: " << exportCount << std::endl;
+    //std::cout << "Thread #" << sessionIndex << ": export count: " << exportCount << std::endl;
+    logWriter.Write("All sessions exported. Thread finish", sessionIndex);
     dbConnect.commit();
     dbConnect.logoff();
 }
@@ -107,7 +111,7 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
 		else {
 			// one or more sessions having this Charging ID are found, try to find appropriate rating group
 			for (auto sessionIter = eqRange.first; sessionIter != eqRange.second; ++sessionIter) {
-                auto dataVolumeIter = dataVolumes.find(sessionIter->second.get()->GetRatingGroup());
+                auto dataVolumeIter = dataVolumes.find(sessionIter->second.get()->ratingGroup);
 				if (dataVolumeIter != dataVolumes.end()) {
 					// session having same rating group found, update values
                     sessionIter->second.get()->UpdateData(dataVolumeIter->second.volumeUplink,
@@ -191,16 +195,21 @@ void Aggregator::ExportAllSessionsToDB()
 void Aggregator::EjectIdleSessions()
 {
  // TODO
-    std::cout << "Thread #" << sessionIndex << ": Ejecting idle sessions. Map size: " << sessions.size() << std::endl;
+    //std::cout << "Thread #" << sessionIndex << ": Ejecting idle sessions. Map size: " << sessions.size() << std::endl;
+    logWriter.Write("Start of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), sessionIndex);
     time_t now;
     time(&now);
-    for (auto& it : sessions) {
-        if (Utils::DiffMinutes(it.second->GetLastUpdateTime(), now) > config.sessionIdlePeriod) {
-            ExportSession(it.second);
-            sessions.erase(it.first);
+    for (auto it = sessions.begin(); it != sessions.end(); it++) {
+        if (Utils::DiffMinutes(it->second->lastUpdateTime, now) > config.sessionIdlePeriod) {
+            ExportSession(it->second);
+            if (!it->second->HaveDataToExport()) {
+                sessions.erase(it);
+            }
         }
     }
-    std::cout << "Thread #" << sessionIndex << ": Idle sessions ejected. Map size: " << sessions.size() << std::endl;
+    time(&lastIdleSessionsEject);
+    //std::cout << "Thread #" << sessionIndex << ": Idle sessions ejected. Map size: " << sessions.size() << std::endl;
+    logWriter.Write("Finish of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), sessionIndex);
 }
 
 
