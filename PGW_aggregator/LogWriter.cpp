@@ -17,12 +17,12 @@ void LogWriter::SetLogStream(time_t messageTime)
 		if(m_logStream.is_open()) {
 			m_logStream.close();
 		}
-		char logName[MAX_PATH];
+        char logName[maxPath];
         if(!m_logPath.empty()) {
-            snprintf(logName, MAX_PATH, "%s/pgw_%s.log", m_logPath.c_str(), dateBuf);
+            snprintf(logName, maxPath, "%s/pgw_%s.log", m_logPath.c_str(), dateBuf);
         }
         else {
-            snprintf(logName, MAX_PATH, "pgw_%s.log", dateBuf);
+            snprintf(logName, maxPath, "pgw_%s.log", dateBuf);
         }
 		m_logStream.open(logName, std::fstream::app | std::fstream::out);
         if (!m_logStream.is_open()) {
@@ -46,7 +46,7 @@ void LogWriter::WriteThreadFunction()
 					strftime(timeBuf, 29, "%H:%M:%S", &messageTime);
                     SetLogStream(pMessage->m_time);
 					m_logStream << timeBuf << "  |  "
-						<< (pMessage->m_threadNum != MAIN_THREAD_NUM ? std::to_string(pMessage->m_threadNum) : " ")
+                        << (pMessage->m_threadNum != mainThreadIndex ? std::to_string(pMessage->m_threadNum) : " ")
 						<< "  |  " << pMessage->m_message.c_str() << std::endl;
 					delete pMessage;
 				}
@@ -75,13 +75,9 @@ LogWriter::LogWriter()
 }
 
 
-LogWriter::~LogWriter() 
+bool LogWriter::Initialize(const std::string& logPath)
 {
-}
-
-bool LogWriter::Initialize(bool logToStdout, const std::string& logPath)
-{
-    this->logToStdout = logToStdout;
+    this->logToStdout = logPath.empty();
     m_logPath = logPath;
 	time_t now;
 	time(&now);
@@ -114,7 +110,7 @@ bool LogWriter::Write(std::string message, short threadIndex)
 
 void LogWriter::operator<<(const std::string& message)
 {
-	Write(message, MAIN_THREAD_NUM);
+    Write(message, mainThreadIndex);
 }
 
 void LogWriter::ClearException()

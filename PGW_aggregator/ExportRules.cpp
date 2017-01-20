@@ -1,7 +1,10 @@
 #include "Utils.h"
 #include "ExportRules.h"
+#include "LogWriter.h"
+#include "Config.h"
 
 extern Config config;
+extern LogWriter logWriter;
 
 ExportRules::ExportRules() :
     refreshInProgress(false),
@@ -15,7 +18,8 @@ void ExportRules::ReadSettingsFromDatabase(otl_connect& connect)
         // another thread acquired the locking flag
         return;
     }
-    std::cout << "Refreshing export rules ..." << std::endl;
+    //std::cout << "Refreshing export rules ..." << std::endl;
+    logWriter << "Refreshing export rules ...";
     // store DB connection for further settings auto refresh
     dbConnect = &connect;
     otl_stream stream;
@@ -48,7 +52,8 @@ void ExportRules::ReadSettingsFromDatabase(otl_connect& connect)
         }
     }
     lastRefresh = time(nullptr);
-    std::cout << "Export rules refreshed" << std::endl;
+    //std::cout << "Export rules refreshed" << std::endl;
+    logWriter << "Export rules refreshed";
     refreshInProgress = false;
 }
 

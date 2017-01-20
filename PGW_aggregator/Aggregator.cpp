@@ -4,7 +4,7 @@
 #include "ExportRules.h"
 #include "Common.h"
 #include "LogWriter.h"
-
+#include "Config.h"
 
 extern ExportRules exportRules;
 extern LogWriter logWriter;
@@ -44,47 +44,24 @@ void Aggregator::AggregateCDRsFromQueue()
 {
     dbConnect.rlogon(config.connectString.c_str());
     while (!(stopFlag && cdrQueue.empty())) {
-        try {
-            GPRSRecord* gprsRecord;
-            if (cdrQueue.pop(gprsRecord)) {
-                ProcessCDR(gprsRecord->choice.pGWRecord);
-                ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
+        GPRSRecord* gprsRecord;
+        if (cdrQueue.pop(gprsRecord)) {
+            ProcessCDR(gprsRecord->choice.pGWRecord);
+            ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
+        }
+        else {
+            double d = Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) ;
+            if (Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) > config.sessionEjectPeriodMin) {
+                EjectIdleSessions();
             }
             else {
-                double d = Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) ;
-                if (Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) > idleSessionEjectPeriodMin) {
-                    EjectIdleSessions();
-                }
-                else {
-                    // nothing to do
-                    std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
-                }
+                // nothing to do
+                std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
             }
         }
-        catch(const otl_exception& ex) {
-            // TODO: add correct processing
-            dbConnect.rollback();
-            std::cout << "DB error: " << std::endl
-                 << ex.msg << std::endl
-                 << ex.stm_text << std::endl
-                 << ex.var_info << std::endl;
-        }
     }
-    //std::cout << "Thread #" << sessionIndex << ": shutdown flag set. Export count: " << exportCount << std::endl;
     logWriter.Write("Shutdown flag set. Exporting all remaining sessions: " + std::to_string(sessions.size()), sessionIndex);
-
-    try {
-        ExportAllSessionsToDB();
-    }
-    catch(const otl_exception& ex) {
-        // TODO: add correct processing
-        dbConnect.rollback();
-        std::cout << "DB error: " << std::endl
-             << ex.msg << std::endl
-             << ex.stm_text << std::endl
-             << ex.var_info << std::endl;
-    }
-    //std::cout << "Thread #" << sessionIndex << ": export count: " << exportCount << std::endl;
+    ExportAllSessionsToDB();
     logWriter.Write("All sessions exported. Thread finish", sessionIndex);
     dbConnect.commit();
     dbConnect.logoff();
@@ -93,15 +70,7 @@ void Aggregator::AggregateCDRsFromQueue()
 
 void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
 {
-	// TODO: check all CDR record parameters existance and validity
-	if (!pGWRecord.servedIMSI) {
-        throw std::string("servedIMSI not present in CDR record, processing impossible");
-	}
-	if (!pGWRecord.servingNodePLMNIdentifier) {
-        throw std::string("servingNodePLMNIdentifier not present in CDR record, processing impossible");
-	}
-
-    if (pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
+    if (pGWRecord.servedIMSI && pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
         DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(pGWRecord);
         auto eqRange = sessions.equal_range(pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
 		if (eqRange.first == eqRange.second) {
@@ -120,7 +89,6 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
                                                       Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime));
                     if (exportRules.IsReadyForExport(sessionIter->second)) {
                         ExportSession(sessionIter->second);
-                        //sessions.erase(sessionIter);
                     }
                     dataVolumes.erase(dataVolumeIter);
 				}
@@ -140,7 +108,6 @@ void Aggregator::CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataV
                       dataVolumeIter.second.volumeDownlink);
         if (exportRules.IsReadyForExport(iter->second)) {
             ExportSession(iter->second);
-            //sessions.erase(iter);
         }
     }
 }
@@ -149,7 +116,6 @@ void Aggregator::CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataV
 SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsigned32 ratingGroup,
                                unsigned32 volumeUplink, unsigned32 volumeDownlink)
 {
-    //std::lock_guard<std::mutex> lock(mutex);
     unsigned64 imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
     return sessions.insert(std::make_pair(pGWRecord.chargingID,
         Session_ptr(new Session(
@@ -170,8 +136,16 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 
 void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
-    //std::lock_guard<std::mutex> lock(mutex);
-    sessionPtr.get()->ExportToDB(dbConnect);
+    try {
+        sessionPtr.get()->ExportToDB(dbConnect);
+    }
+    catch(const otl_exception& ex) {
+        // TODO: add correct processing
+        logWriter.Write("**** DB ERROR while exporting session ****", sessionIndex);
+        logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
+        logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
+        logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
+    }
     exportCount++;
 }
 
@@ -194,13 +168,11 @@ void Aggregator::ExportAllSessionsToDB()
 
 void Aggregator::EjectIdleSessions()
 {
- // TODO
-    //std::cout << "Thread #" << sessionIndex << ": Ejecting idle sessions. Map size: " << sessions.size() << std::endl;
     logWriter.Write("Start of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), sessionIndex);
     time_t now;
     time(&now);
     for (auto it = sessions.begin(); it != sessions.end(); it++) {
-        if (Utils::DiffMinutes(it->second->lastUpdateTime, now) > config.sessionIdlePeriod) {
+        if (Utils::DiffMinutes(it->second->lastUpdateTime, now) > config.sessionEjectPeriodMin) {
             ExportSession(it->second);
             if (!it->second->HaveDataToExport()) {
                 sessions.erase(it);
@@ -208,7 +180,6 @@ void Aggregator::EjectIdleSessions()
         }
     }
     time(&lastIdleSessionsEject);
-    //std::cout << "Thread #" << sessionIndex << ": Idle sessions ejected. Map size: " << sessions.size() << std::endl;
     logWriter.Write("Finish of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), sessionIndex);
 }
 

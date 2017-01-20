@@ -1,80 +1,150 @@
-#include "ConfigContainer.h"
+#include <boost/filesystem.hpp>
+#include "Config.h"
 
-void Config::ReadConfigFile(ifstream& configStream)
+using namespace boost;
+
+Config::Config()
 {
-	string line;
-	bool processingFtpSettings = false;
-	string roamingHubName;
-	FtpSetting ftpSetting;
-	while (getline(configStream, line))
+    SetDefaults();
+}
+
+
+Config::Config(std::ifstream& configStream)
+{
+    SetDefaults();
+    ReadConfigFile(configStream);
+}
+
+void Config::SetDefaults()
+{
+    threadCount = 8;
+    homePlmnID = 25027;
+    sessionEjectPeriodMin = 30;
+    exportRulesRefreshPeriodMin = 30;
+    cdrExtension = ".dat";
+}
+
+
+void Config::ReadConfigFile(std::ifstream& configStream)
+{
+    std::string line;
+    while (getline(configStream, line))
 	{
 		size_t pos = line.find_first_not_of(" \t\r\n");
-		if (pos != string::npos)
-			if (line[pos] == '#' || line[pos] == '\0')
+        if (pos != std::string::npos) {
+            if (line[pos] == '#' || line[pos] == '\0') {
 				continue;
+            }
+        }
 		size_t delim_pos = line.find_first_of(" \t=", pos);
-		string option_name;
-		if (delim_pos != string::npos) 
+        std::string option_name;
+        if (delim_pos != std::string::npos) {
 			option_name = line.substr(pos, delim_pos - pos);
-		else
+        }
+        else {
 			option_name = line;
+        }
 		
-		transform(option_name.begin(), option_name.end(), option_name.begin(), ::toupper);
+        std::transform(option_name.begin(), option_name.end(), option_name.begin(), ::toupper);
 
 		size_t value_pos = line.find_first_not_of(" \t=", delim_pos);
-		string option_value;
-		if (value_pos != string::npos) {
+        std::string option_value;
+        if (value_pos != std::string::npos) {
 			option_value = line.substr(value_pos);
 			size_t comment_pos = option_value.find_first_of(" \t#");
-			if (comment_pos != string::npos)
+            if (comment_pos != std::string::npos)
 				option_value = option_value.substr(0, comment_pos);
 		}
 
-		if (option_name.compare("CONNECT_STRING") == 0) 
-			m_connectString = option_value;
-
-		else if (option_name.compare("OUTPUT_DIRECTORY") == 0) {
-			if (option_value[option_value.length() - 1] == '\\')
-				option_value.erase(option_value.length() - 1);
-			m_outputDirectory = option_value;
-		}
-
-		else if (option_name.compare("FTP_SETTINGS_FOR") == 0) {
-			roamingHubName = option_value;
-			transform(roamingHubName.begin(), roamingHubName.end(), roamingHubName.begin(), ::toupper);
-			if (!roamingHubName.empty()) {
-				processingFtpSettings = true;
-			}
-		}
-
-		else if (processingFtpSettings) {
-			if (option_name.compare("FTP_SERVER") == 0)
-				ftpSetting.ftpServer = option_value;
-			else if (option_name.compare("FTP_USERNAME") == 0)
-				ftpSetting.ftpUsername = option_value;
-			else if (option_name.compare("FTP_PASSWORD") == 0)
-				ftpSetting.ftpPassword = option_value;
-			else if (option_name.compare("FTP_DIRECTORY") == 0)
-				ftpSetting.ftpDirectory = option_value;
-			else if (option_name.compare("FTP_PORT") == 0)
-				ftpSetting.ftpPort = option_value;
-			else if (option_name.compare("END_FTP_SETTINGS") == 0) {
-                m_ftpSettings = ftpSetting;
-				processingFtpSettings = false;
-				// reset temporary objects to prepare them for new settings
-				roamingHubName = "";
-				ftpSetting.ftpServer = "";
-				ftpSetting.ftpUsername = "";
-				ftpSetting.ftpPassword = "";
-				ftpSetting.ftpDirectory = "";
-				ftpSetting.ftpPort = "";
-			}
-		}
+        if (option_name == connectStringParamName) {
+            connectString = option_value;
+        }
+        else if (option_name == inputDirParamName) {
+            inputDir = option_value;
+        }
+        else if (option_name == archiveDirParamName) {
+            archiveDir = option_value;
+        }
+        else if (option_name == logDirParamName) {
+            logDir = option_value;
+        }
+        else if (option_name == sampleCdrDirParamName) {
+            sampleCdrDir = option_value;
+        }
+        else if (option_name == cdrExtensionParamName) {
+            cdrExtension == option_value;
+        }
+        else if (option_name == threadCountParamName) {
+            threadCount = ParseULongValue(option_name, option_value);
+        }
+        else if (option_name == homePlmnIdParamName) {
+            homePlmnID = ParseULongValue(option_name, option_value);
+        }
+        else if (option_name == sessionEjectPeriodParamName) {
+            sessionEjectPeriodMin = ParseULongValue(option_name, option_value);
+        }
+        else if (option_name == exportRulesRefreshPeriodParamName) {
+            exportRulesRefreshPeriodMin = ParseULongValue(option_name, option_value);
+        }
+        else if (!option_name.empty()){
+            throw std::runtime_error("Unknown parameter " + option_name + " found");
+        }
 	}	
 }
 
-Config::Config(ifstream& configStream)
+
+unsigned long Config::ParseULongValue(const std::string& name, const std::string& value)
 {
-	ReadConfigFile(configStream);
+    try {
+        return std::stoul(value);
+    }
+    catch(const std::invalid_argument&) {
+        throw std::runtime_error("Wrong value given for numeric config parameter " + name);
+    }
+}
+
+void Config::ValidateParams()
+{
+    if (connectString.empty()) {
+        throw std::runtime_error(connectStringParamName + " parameter is not set.");
+    }
+    if (inputDir.empty()) {
+        throw std::runtime_error(inputDirParamName + " parameter is not set.");
+    }
+    if (archiveDir.empty()) {
+        throw std::runtime_error(archiveDirParamName + " parameter is not set.");
+    }
+
+    filesystem::path inputPath(inputDir);
+    filesystem::path archivePath(archiveDir);
+
+    if (!filesystem::exists(inputPath)) {
+        throw std::runtime_error(std::string("Input directory ") + inputDir + " does not exist");
+    }
+    if (!filesystem::exists(archivePath)) {
+        throw std::runtime_error(std::string("Archive directory ") + archiveDir + " does not exist");
+    }
+    if (!filesystem::is_directory(inputPath)) {
+        throw std::runtime_error(inputDir + " is not a directory");
+    }
+    if (!filesystem::is_directory(archivePath)) {
+        throw std::runtime_error(archiveDir + " is not a directory");
+    }
+    if (!(threadCount >= minThreadCount && threadCount <= maxThreadCount)) {
+        throw std::runtime_error(threadCountParamName + " must have value from " +
+                                 std::to_string(minThreadCount) + " to " + std::to_string(maxThreadCount));
+    }
+}
+
+std::string Config::DumpAllSettings()
+{
+    return connectStringParamName + ": " + connectString + "\r\n" +
+           inputDirParamName + ": " + inputDir + "\r\n" +
+            archiveDirParamName + ": " + archiveDir + "\r\n" +
+            logDirParamName + ": " + logDir + "\r\n" +
+            cdrExtensionParamName + ": " + cdrExtension + "\r\n" +
+            homePlmnIdParamName + ": " + std::to_string(homePlmnID) + "\r\n" +
+            sessionEjectPeriodParamName + ": " + std::to_string(sessionEjectPeriodMin) + "\r\n" +
+            exportRulesRefreshPeriodParamName + ": " + std::to_string(exportRulesRefreshPeriodMin);
 }
 

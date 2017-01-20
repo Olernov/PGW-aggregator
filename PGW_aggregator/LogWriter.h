@@ -35,9 +35,8 @@ class LogWriter
 {
 public:
 	LogWriter();
-	~LogWriter();
-    bool Initialize(bool logToStdout, const std::string& logPath);
-	bool Write(std::string message, short threadIndex = MAIN_THREAD_NUM);
+    bool Initialize(const std::string& logPath);
+    bool Write(std::string message, short threadIndex = mainThreadIndex);
 	bool Write(const LogMessage&);
 	void operator<<(const std::string&);
 	inline std::exception_ptr GetException() { return m_excPointer; }

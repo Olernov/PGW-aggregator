@@ -15,7 +15,7 @@ public:
 	void SetPrintContents(bool);
     //void ExportAllSessionsToDB(std::string filename);
 private:
-    const char* shutdownFlagFilename = "PGW_aggregator.stop";
+    const char* shutdownFlagFilename = "pgw-aggregator.stop";
     std::vector<Aggregator_ptr> aggregators;
     bool printFileContents;
     bool stopFlag;

@@ -4,6 +4,7 @@
 #include "Parser.h"
 #include "GPRSRecord.h"
 #include "LogWriter.h"
+#include "Config.h"
 
 using namespace boost;
 
@@ -14,8 +15,8 @@ Parser::Parser() :
     stopFlag(false),
     printFileContents(false)
 {
-    aggregators.reserve(config.sessionsNum);
-    for (int i =0; i < config.sessionsNum; i++) {
+    aggregators.reserve(config.threadCount);
+    for (int i =0; i < config.threadCount; i++) {
         aggregators.push_back(Aggregator_ptr(new Aggregator(i)));
     }
 }
@@ -31,27 +32,6 @@ void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExte
 	filesystem::path cdrPath(cdrFilesDirectory);
     filesystem::path archivePath(cdrArchiveDirectory);
 
-	try {
-        if (!filesystem::exists(cdrPath)) {
-            throw std::string("CDR files directory ") + cdrFilesDirectory + " does not exist";
-        }
-
-        if (!filesystem::exists(archivePath)) {
-            throw std::string("Archive files directory ") + cdrArchiveDirectory + " does not exist";
-        }
-
-        if (!filesystem::is_directory(cdrPath)) {
-            throw std::string("Given CDR files path ") + cdrFilesDirectory + " is not a directory";
-        }
-        if (!filesystem::is_directory(archivePath)) {
-            throw std::string("Given archive path ") + cdrArchiveDirectory + " is not a directory";
-        }
-    }
-    catch(const boost::filesystem::filesystem_error& ex) {
-        // TODO: process correctly
-        throw std::string(ex.what());
-    }
-
     while(!IsShutdownFlagSet()) {
         try {
             filesystem::directory_iterator endIterator;
@@ -60,13 +40,10 @@ void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExte
                 if (filesystem::is_regular_file(dirIterator->status()) &&
                         dirIterator->path().extension() == cdrExtension) {
                     filesFound = true;
-                    //std::cout << "Parsing file " << dirIterator->path().filename().string() << "..." << std::endl;
                     logWriter << "Parsing file " + dirIterator->path().filename().string() + "...";
                     ParseFile(dirIterator->path().string());
                     filesystem::path archiveFilename = archivePath / dirIterator->path().filename();
-                    //std::cout << "File " << dirIterator->path().filename().string() << " parsed" << std::endl;
                     logWriter << "File " + dirIterator->path().filename().string() + " parsed.";
-                    //std::cout << "Moving file to " << archiveFilename << std::endl;
                     filesystem::rename(dirIterator->path(), archiveFilename);
                     if (IsShutdownFlagSet()) {
                         break;
@@ -77,12 +54,12 @@ void Parser::ProcessDirectory(std::string cdrFilesDirectory, std::string cdrExte
                 std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
             }
         }
-        catch(const boost::filesystem::filesystem_error& ex) {
-            // TODO: process correctly
-            throw std::string(ex.what());
+        catch(const std::exception& ex) {
+            logWriter << "Parser ERROR: ";
+            logWriter << ex.what();
         }
     }
-    std::cout << "Shutting down ..." << std::endl;
+    logWriter << "Shutting down ...";
 }
 
 
@@ -138,7 +115,7 @@ void Parser::ParseFile(std::string filename)
 Aggregator& Parser::GetAppropiateAggregator(const GPRSRecord* gprsRecord)
 {
     unsigned64 imsi = Utils::TBCDString_to_ULongLong(gprsRecord->choice.pGWRecord.servedIMSI);
-    return *aggregators[imsi % config.sessionsNum].get();
+    return *aggregators[imsi % config.threadCount].get();
 }
 
 
