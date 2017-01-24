@@ -1,0 +1,11 @@
+Catch exceptions in aggregator threads
+
+Move tests to separate files or project
+
+ChargingID may repeat after time or PGW restart
+
+Consider delete session from map after export
+
+Slow export to DB
+
+Change aggregation when PLMNID changes
