@@ -53,8 +53,6 @@ void Session::ExportToDB(otl_connect& dbConnect)
 {
     if (HaveDataToExport()) {
         otl_stream dbStream;
-        // to_date(:start_time /*char[20]*/, 'yyyymmddhh24miss'),
-
         dbStream.open(1,
                 "call BILLING.MOBILE_DATA_CHARGER.ExportSession(:charging_id /*bigint*/, :imsi /*bigint*/, :msisdn /*bigint*/, "
                 ":imei /*char[20]*/, :access_point_name /*char[64]*/, :start_time<timestamp>, :end_time<timestamp>,"

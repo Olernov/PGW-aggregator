@@ -60,7 +60,7 @@ void RunAllTests(otl_connect& dbConnect)
         Parser parser;
         // uncomment if printing file contents neeeded:
             //parser.SetPrintContents(true);
-        parser.ProcessDirectory(config.sampleCdrDir, config.cdrExtension, config.archiveDir);
+        parser.ProcessDirectory(config.sampleCdrDir, config.cdrExtension, config.archiveDir, config.badDir);
         std::cout << "Export consumed " << difftime(time(nullptr), testStart) << " seconds" << std::endl;
         std::cout << "Checking exported data ..." << std::endl;
         CheckExportedData(dbConnect);
@@ -115,7 +115,7 @@ int main(int argc, const char* argv[])
         }
         else {
             Parser parser;
-            parser.ProcessDirectory(config.inputDir, config.cdrExtension, config.archiveDir);
+            parser.ProcessDirectory(config.inputDir, config.cdrExtension, config.archiveDir, config.badDir);
         }
         dbConnect.commit();
 		dbConnect.logoff();

@@ -17,6 +17,7 @@ public:
     std::string connectString;
     std::string inputDir;
     std::string archiveDir;
+    std::string badDir;
     std::string logDir;
     std::string sampleCdrDir;
     std::string cdrExtension;
@@ -28,6 +29,7 @@ private:
     const std::string connectStringParamName = "CONNECT_STRING";
     const std::string inputDirParamName = "INPUT_DIR";
     const std::string archiveDirParamName = "ARCHIVE_DIR";
+    const std::string badDirParamName = "BAD_DIR";
     const std::string logDirParamName = "LOG_DIR";
     const std::string sampleCdrDirParamName = "SAMPLE_CDR_DIR";
     const std::string cdrExtensionParamName = "CDR_FILES_EXTENSION";

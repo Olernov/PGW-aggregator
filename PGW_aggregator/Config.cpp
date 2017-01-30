@@ -65,6 +65,9 @@ void Config::ReadConfigFile(std::ifstream& configStream)
         else if (option_name == archiveDirParamName) {
             archiveDir = option_value;
         }
+        else if (option_name == badDirParamName) {
+            badDir = option_value;
+        }
         else if (option_name == logDirParamName) {
             logDir = option_value;
         }

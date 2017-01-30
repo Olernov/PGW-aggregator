@@ -17,10 +17,11 @@ Aggregator::Aggregator(int index) :
     sessionIndex(index),
     cdrQueue(cdrQueueSize),
     stopFlag(false),
-    exportCount(0)
+    exportCount(0),
+    exceptionPtr(nullptr)
 {
     time(&lastIdleSessionsEject);
-    thread = std::thread(&Aggregator::AggregateCDRsFromQueue, this);
+    thread = std::thread(&Aggregator::AggregatorThreadFunc, this);
 }
 
 Aggregator::~Aggregator()
@@ -47,33 +48,9 @@ void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 }
 
 
-void Aggregator::ConnectToDB()
+void Aggregator::AggregatorThreadFunc()
 {
-    try {
-        if (dbConnect.connected) {
-            dbConnect.logoff();
-        }
-    }
-    catch(const otl_exception& ex) {
-    }
-
-    try {
-        dbConnect.rlogon(config.connectString.c_str());
-        logWriter.Write("Connected successfully", sessionIndex);
-    }
-    catch(const otl_exception& ex) {
-        logWriter.Write("**** DB ERROR while logging in ****", sessionIndex);
-        logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
-        logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
-        logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
-    }
-}
-
-
-void Aggregator::AggregateCDRsFromQueue()
-{
-    ConnectToDB();
-
+    ReconnectToDB();
     bool cdrFound = false;
     while (!(stopFlag && cdrQueue.empty())) {
         GPRSRecord* gprsRecord;
@@ -90,7 +67,6 @@ void Aggregator::AggregateCDRsFromQueue()
                                 sessionIndex);
                 cdrFound = false;
             }
-            double d = Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) ;
             if (Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) > config.sessionEjectPeriodMin) {
                 EjectIdleSessions();
             }
@@ -105,6 +81,35 @@ void Aggregator::AggregateCDRsFromQueue()
     logWriter.Write("All sessions exported. Thread finish", sessionIndex);
     dbConnect.commit();
     dbConnect.logoff();
+}
+
+
+void Aggregator::ReconnectToDB()
+{
+    try {
+        if (dbConnect.connected) {
+            dbConnect.logoff();
+        }
+    }
+    catch(const otl_exception& ex) {
+    }
+
+    try {
+        dbConnect.rlogon("wrong/login@192.168.100.109:1521/irbistst" /*config.connectString).c_str()*/);
+        ClearExceptionPtr();
+        lastExceptionText.clear();
+        logWriter.Write("Connected successfully", sessionIndex);
+    }
+    catch(const otl_exception& ex) {
+        if (lastExceptionText != reinterpret_cast<const char*>(ex.msg)) {
+            logWriter.Write("**** DB ERROR while logging in ****", sessionIndex);
+            logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
+            logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
+            logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
+            lastExceptionText = reinterpret_cast<const char*>(ex.msg);
+        }
+        SetExceptionPtr();
+    }
 }
 
 
@@ -177,19 +182,28 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
     if (!dbConnect.connected) {
-        ConnectToDB();
+        logWriter.Write("Not connected to DB, trying to connect ...", sessionIndex);
+        ReconnectToDB();
     }
-    try {
-        sessionPtr.get()->ExportToDB(dbConnect);
-    }
-    catch(const otl_exception& ex) {
-        logWriter.Write("**** DB ERROR while exporting session ****", sessionIndex);
-        logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
-        logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
-        logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
-
-        logWriter.Write("Trying to reconnect ...", sessionIndex);
-        ConnectToDB();
+    if (dbConnect.connected) {
+        try {
+            sessionPtr.get()->ExportToDB(dbConnect);
+            ClearExceptionPtr();
+            lastExceptionText.clear();
+        }
+        catch(const otl_exception& ex) {
+            if (lastExceptionText != reinterpret_cast<const char*>(ex.msg)) {
+                logWriter.Write("**** DB ERROR while exporting session ****", sessionIndex);
+                logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
+                logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
+                logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
+                logWriter.Write("Trying to reconnect ...", sessionIndex);
+                lastExceptionText = reinterpret_cast<const char*>(ex.msg);
+                //TODO: dbConnect.connected = false;
+            }
+            //TODO ReconnectToDB();
+            SetExceptionPtr();
+        }
     }
     exportCount++;
 }
@@ -205,8 +219,8 @@ void Aggregator::PrintSessions()
 
 void Aggregator::ExportAllSessionsToDB()
 {
-    for (auto& it : sessions) {
-        ExportSession(it.second);
+    for (auto it = sessions.begin(); it != sessions.end(); it++) {
+        ExportSession(it->second);
     }
 }
 
@@ -229,13 +243,30 @@ void Aggregator::EjectIdleSessions()
 }
 
 
-void Aggregator::EraseAllSessions()
-{
-    sessions.clear();
-}
-
-
 void Aggregator::SetStopFlag()
 {
     stopFlag = true;
+}
+
+
+void Aggregator::SetExceptionPtr()
+{
+    std::lock_guard<std::mutex> lock(setExceptionMutex);
+    exceptionPtr = std::current_exception();
+}
+
+
+void Aggregator::ClearExceptionPtr()
+{
+    std::lock_guard<std::mutex> lock(setExceptionMutex);
+    exceptionPtr = nullptr;
+}
+
+
+std::exception_ptr Aggregator::PopException()
+{
+    std::lock_guard<std::mutex> lock(setExceptionMutex);
+    std::exception_ptr ex = exceptionPtr;
+    //exceptionPtr = nullptr;
+    return ex;
 }
