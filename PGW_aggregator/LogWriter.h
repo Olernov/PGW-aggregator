@@ -10,6 +10,14 @@
 #include <boost/lockfree/queue.hpp>
 #include "Common.h"
 
+
+enum LogLevel
+{
+    debug = 0,
+    notice = 1,
+    error = 2
+};
+
 class LogWriterException 
 {
 public:
@@ -35,8 +43,8 @@ class LogWriter
 {
 public:
 	LogWriter();
-    bool Initialize(const std::string& logPath);
-    bool Write(std::string message, short threadIndex = mainThreadIndex);
+    bool Initialize(const std::string& logPath, LogLevel logLevel);
+    bool Write(std::string message, short threadIndex = mainThreadIndex, LogLevel msgLevel = notice);
 	bool Write(const LogMessage&);
 	void operator<<(const std::string&);
 	inline std::exception_ptr GetException() { return m_excPointer; }
@@ -47,6 +55,7 @@ private:
     static const int sleepWhenQueueEmpty = 3;
 	std::exception_ptr m_excPointer;
     bool logToStdout;
+    LogLevel logLevel;
 	std::string m_logPath;
 	boost::lockfree::queue<LogMessage*> messageQueue;
 	std::atomic<bool> m_stopFlag;

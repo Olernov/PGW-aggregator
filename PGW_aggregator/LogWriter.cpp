@@ -75,10 +75,11 @@ LogWriter::LogWriter()
 }
 
 
-bool LogWriter::Initialize(const std::string& logPath)
+bool LogWriter::Initialize(const std::string& logPath, LogLevel level)
 {
     this->logToStdout = logPath.empty();
     m_logPath = logPath;
+    logLevel = level;
 	time_t now;
 	time(&now);
     SetLogStream(now);
@@ -99,12 +100,14 @@ bool LogWriter::Write(const LogMessage& message)
 	return true;
 }
 
-bool LogWriter::Write(std::string message, short threadIndex)
+bool LogWriter::Write(std::string message, short threadIndex, LogLevel msgLevel)
 {
-	time_t now;
-	time(&now);
-	LogMessage* pnewMessage = new LogMessage(now, threadIndex, message);
-	Write(*pnewMessage);
+    if (msgLevel >= logLevel) {
+        time_t now;
+        time(&now);
+        LogMessage* pnewMessage = new LogMessage(now, threadIndex, message);
+        Write(*pnewMessage);
+    }
 	return true;
 }
 

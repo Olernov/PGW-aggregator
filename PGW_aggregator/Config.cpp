@@ -3,26 +3,31 @@
 
 using namespace boost;
 
-Config::Config()
+Config::Config() :
+    threadCount(8),
+    homePlmnID(25027),
+    sessionEjectPeriodMin(30),
+    exportRulesRefreshPeriodMin(30),
+    cdrExtension(".dat"),
+    logLevel(notice)
 {
-    SetDefaults();
 }
 
 
-Config::Config(std::ifstream& configStream)
+Config::Config(std::ifstream& configStream) :
+    Config()
 {
-    SetDefaults();
     ReadConfigFile(configStream);
 }
 
-void Config::SetDefaults()
-{
-    threadCount = 8;
-    homePlmnID = 25027;
-    sessionEjectPeriodMin = 30;
-    exportRulesRefreshPeriodMin = 30;
-    cdrExtension = ".dat";
-}
+//void Config::SetDefaults()
+//{
+//    threadCount = 8;
+//    homePlmnID = 25027;
+//    sessionEjectPeriodMin = 30;
+//    exportRulesRefreshPeriodMin = 30;
+//    cdrExtension = ".dat";
+//}
 
 
 void Config::ReadConfigFile(std::ifstream& configStream)
@@ -88,6 +93,20 @@ void Config::ReadConfigFile(std::ifstream& configStream)
         }
         else if (option_name == exportRulesRefreshPeriodParamName) {
             exportRulesRefreshPeriodMin = ParseULongValue(option_name, option_value);
+        }
+        else if (option_name == logLevelParamName) {
+            if (option_value == "error") {
+                logLevel = error;
+            }
+            else if (option_value == "notice") {
+                logLevel = notice;
+            }
+            else if (option_value == "debug") {
+                logLevel = debug;
+            }
+            else {
+                throw std::runtime_error("Wrong value passed for " + option_name + ".");
+            }
         }
         else if (!option_name.empty()){
             throw std::runtime_error("Unknown parameter " + option_name + " found");

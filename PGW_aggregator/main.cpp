@@ -57,10 +57,10 @@ void RunAllTests(otl_connect& dbConnect)
         dbConnect.commit();
 
         time_t testStart = time(nullptr);
-        Parser parser;
+        Parser parser(config.sampleCdrDir, config.cdrExtension, config.archiveDir, config.badDir);
         // uncomment if printing file contents neeeded:
             //parser.SetPrintContents(true);
-        parser.ProcessDirectory(config.sampleCdrDir, config.cdrExtension, config.archiveDir, config.badDir);
+        parser.ProcessCdrFiles();
         std::cout << "Export consumed " << difftime(time(nullptr), testStart) << " seconds" << std::endl;
         std::cout << "Checking exported data ..." << std::endl;
         CheckExportedData(dbConnect);
@@ -100,7 +100,7 @@ int main(int argc, const char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    logWriter.Initialize(config.logDir);
+    logWriter.Initialize(config.logDir, config.logLevel);
     logWriter << "PGW aggregator start";
     logWriter << config.DumpAllSettings();
 
@@ -114,19 +114,18 @@ int main(int argc, const char* argv[])
             RunAllTests(dbConnect);
         }
         else {
-            Parser parser;
-            parser.ProcessDirectory(config.inputDir, config.cdrExtension, config.archiveDir, config.badDir);
+            Parser parser(config.inputDir, config.cdrExtension, config.archiveDir, config.badDir);
+            parser.ProcessCdrFiles();
         }
         dbConnect.commit();
 		dbConnect.logoff();
 	}
-	catch(otl_exception& otlEx) {
-		dbConnect.rollback();
-		// TODO: add correct processing
-        std::cerr << "DB error: " << std::endl
-             << otlEx.msg << std::endl
-             << otlEx.stm_text << std::endl
-             << otlEx.var_info << std::endl;
+    catch(otl_exception& ex) {
+        // TODO: add correct processing
+        logWriter << "*************  DB ERROR in main thread: **********";
+        logWriter << reinterpret_cast<const char*>(ex.msg);
+        logWriter << reinterpret_cast<const char*>(ex.stm_text);
+        logWriter << reinterpret_cast<const char*>(ex.var_info);
 	}
     logWriter << "PGW aggregator shutdown";
     logWriter.Stop();

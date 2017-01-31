@@ -10,7 +10,12 @@
 extern Config config;
 extern LogWriter logWriter;
 
-Parser::Parser() :
+Parser::Parser(const std::string &filesDirectory, const std::string &extension, const std::string &archDirectory, 
+               const std::string &badDirectory) :
+    cdrFilesDirectory(filesDirectory),
+    cdrExtension(extension),
+    cdrArchiveDirectory(archDirectory),
+    cdrBadDirectory(badDirectory),
     stopFlag(false),
     printFileContents(false)
 {
@@ -21,8 +26,7 @@ Parser::Parser() :
 }
 
 
-void Parser::ProcessDirectory(const std::string& cdrFilesDirectory, const std::string& cdrExtension,
-                              const std::string& cdrArchiveDirectory, const std::string& cdrBadDirectory)
+void Parser::ProcessCdrFiles()
 {
 	filesystem::path cdrPath(cdrFilesDirectory);
 
@@ -36,7 +40,14 @@ void Parser::ProcessDirectory(const std::string& cdrFilesDirectory, const std::s
                         dirIterator->path().extension() == cdrExtension) {
                     filesFound = true;
                     parserSuspend = false;
-                    ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
+                    if (std::all_of(aggregators.begin(), aggregators.end(), [](Aggregator_ptr& aggr)
+                                                                            { return aggr.get()->IsReady(); } )) {
+                        ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
+                    }
+                    else {
+                        logWriter.Write("Some aggregators are not ready. Processing postponed.", mainThreadIndex, debug);
+                        Sleep();
+                    }
                     if (IsShutdownFlagSet()) {
                         break;
                     }
@@ -47,26 +58,24 @@ void Parser::ProcessDirectory(const std::string& cdrFilesDirectory, const std::s
                     parserSuspend = true;
                     logWriter << "All CDR files processed.";
                 }
-                std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
+                Sleep();
             }
         }
-        catch(const otl_exception& ex) {
-            if (lastExceptionText != reinterpret_cast<const char*>(ex.msg)) {
-                logWriter << "*************  DB ERROR in aggregating thread: **********";
-                logWriter << reinterpret_cast<const char*>(ex.msg);
-                logWriter << reinterpret_cast<const char*>(ex.stm_text);
-                logWriter << reinterpret_cast<const char*>(ex.var_info);
-                lastExceptionText = reinterpret_cast<const char*>(ex.msg);
-            }
-            std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
-        }
+//        catch(const otl_exception& ex) {
+//            if (lastExceptionText != reinterpret_cast<const char*>(ex.msg)) {
+//                logWriter << "*************  DB ERROR in aggregating thread: **********";
+//                logWriter << reinterpret_cast<const char*>(ex.msg);
+//                logWriter << reinterpret_cast<const char*>(ex.stm_text);
+//                logWriter << reinterpret_cast<const char*>(ex.var_info);
+//                lastExceptionText = reinterpret_cast<const char*>(ex.msg);
+//            }
+//        }
         catch(const std::exception& ex) {
             if (lastExceptionText != ex.what()) {
                 logWriter << "Parser ERROR: ";
                 logWriter << ex.what();
                 lastExceptionText = ex.what();
             }
-            std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
         }
     }
     logWriter << "Shutting down ...";
@@ -138,10 +147,6 @@ void Parser::ParseFile(FILE *pgwFile, const std::string& filename)
         nextChunk += rval.consumed;
         if (gprsRecord->present == GPRSRecord_PR_pGWRecord) {
             auto& aggr = GetAppropiateAggregator(gprsRecord);
-            std::exception_ptr exceptionPtr = aggr.PopException();
-            if (exceptionPtr != nullptr) {
-                std::rethrow_exception(exceptionPtr);
-            }
             aggr.AddCdrToQueue(gprsRecord);
         }
         recordCount++;
@@ -168,7 +173,6 @@ void Parser::SetPrintContents(bool printContents)
 bool Parser::IsShutdownFlagSet()
 {
     if (filesystem::exists(shutdownFlagFilename)) {
-        filesystem::remove(shutdownFlagFilename);
         return true;
     }
     else {
@@ -185,8 +189,15 @@ void Parser::SetStopFlag()
     }
 }
 
+
+void Parser::Sleep()
+{
+    std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
+}
+
 Parser::~Parser()
 {
     SetStopFlag();
+    filesystem::remove(shutdownFlagFilename);
 }
 

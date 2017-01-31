@@ -13,14 +13,18 @@ class parse_error : public std::logic_error {};
 class Parser
 {
 public:
-    Parser();
+    Parser(const std::string &cdrFilesDirectory, const std::string &cdrExtension,
+           const std::string &archiveDirectory, const std::string &cdrBadDirectory);
     ~Parser();
-    void ProcessDirectory(const std::string &cdrFilesDirectory, const std::string &cdrExtension,
-                          const std::string &archiveDirectory, const std::string &cdrBadDirectory);
+    void ProcessCdrFiles();
     void SetStopFlag();
 	void SetPrintContents(bool);
     //void ExportAllSessionsToDB(std::string filename);
 private:
+    std::string cdrFilesDirectory; 
+    std::string cdrExtension;
+    std::string cdrArchiveDirectory;
+    std::string cdrBadDirectory;
     const char* shutdownFlagFilename = "pgw-aggregator.stop";
     std::vector<Aggregator_ptr> aggregators;
     bool printFileContents;
@@ -33,4 +37,5 @@ private:
     void AggregateCDRsFromQueue();
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool IsShutdownFlagSet();
+    void Sleep();
 };

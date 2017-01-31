@@ -21,6 +21,7 @@ public:
     void AddCdrToQueue(const GPRSRecord* gprsRecord);
     void AggregatorThreadFunc();
     void ProcessCDR(const PGWRecord &pGWRecord);
+    bool IsReady();
 	void PrintSessions();
     void CheckExportedData(AggregationTestType);
     void SetStopFlag();

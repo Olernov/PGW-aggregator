@@ -24,26 +24,19 @@ Aggregator::Aggregator(int index) :
     thread = std::thread(&Aggregator::AggregatorThreadFunc, this);
 }
 
-Aggregator::~Aggregator()
-{
-    stopFlag = true;
-    thread.join();
-}
-
-
 void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 {
     bool queueIsFull = false;
     while (!cdrQueue.push(const_cast<GPRSRecord*>(gprsRecord))) {
         if (!queueIsFull) {
             logWriter.Write("AddCdrToQueue failure: CDR queue max size reached (" + std::to_string(cdrQueueSize) + ")",
-                            sessionIndex);
+                            sessionIndex, debug);
             queueIsFull = true;
         }
         std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
     }
     if (queueIsFull) {
-        logWriter.Write("AddCdrToQueue success", sessionIndex);
+        logWriter.Write("AddCdrToQueue success", sessionIndex, debug);
     }
 }
 
@@ -79,8 +72,10 @@ void Aggregator::AggregatorThreadFunc()
     logWriter.Write("Shutdown flag set. Exporting all remaining sessions: " + std::to_string(sessions.size()), sessionIndex);
     ExportAllSessionsToDB();
     logWriter.Write("All sessions exported. Thread finish", sessionIndex);
-    dbConnect.commit();
-    dbConnect.logoff();
+    if (dbConnect.connected) {
+        dbConnect.commit();
+        dbConnect.logoff();
+    }
 }
 
 
@@ -95,7 +90,7 @@ void Aggregator::ReconnectToDB()
     }
 
     try {
-        dbConnect.rlogon("wrong/login@192.168.100.109:1521/irbistst" /*config.connectString).c_str()*/);
+        dbConnect.rlogon(config.connectString.c_str());
         ClearExceptionPtr();
         lastExceptionText.clear();
         logWriter.Write("Connected successfully", sessionIndex);
@@ -108,6 +103,7 @@ void Aggregator::ReconnectToDB()
             logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
             lastExceptionText = reinterpret_cast<const char*>(ex.msg);
         }
+        dbConnect.connected = false;
         SetExceptionPtr();
     }
 }
@@ -182,7 +178,7 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
     if (!dbConnect.connected) {
-        logWriter.Write("Not connected to DB, trying to connect ...", sessionIndex);
+        //logWriter.Write("Not connected to DB, trying to connect ...", sessionIndex, debug);
         ReconnectToDB();
     }
     if (dbConnect.connected) {
@@ -197,12 +193,11 @@ void Aggregator::ExportSession(Session_ptr sessionPtr)
                 logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
                 logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
                 logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
-                logWriter.Write("Trying to reconnect ...", sessionIndex);
                 lastExceptionText = reinterpret_cast<const char*>(ex.msg);
-                //TODO: dbConnect.connected = false;
             }
-            //TODO ReconnectToDB();
+            dbConnect.connected = false;
             SetExceptionPtr();
+            ReconnectToDB();
         }
     }
     exportCount++;
@@ -243,12 +238,6 @@ void Aggregator::EjectIdleSessions()
 }
 
 
-void Aggregator::SetStopFlag()
-{
-    stopFlag = true;
-}
-
-
 void Aggregator::SetExceptionPtr()
 {
     std::lock_guard<std::mutex> lock(setExceptionMutex);
@@ -269,4 +258,22 @@ std::exception_ptr Aggregator::PopException()
     std::exception_ptr ex = exceptionPtr;
     //exceptionPtr = nullptr;
     return ex;
+}
+
+bool Aggregator::IsReady()
+{
+    return dbConnect.connected && (exceptionPtr == nullptr);
+}
+
+
+void Aggregator::SetStopFlag()
+{
+    stopFlag = true;
+}
+
+
+Aggregator::~Aggregator()
+{
+    stopFlag = true;
+    thread.join();
 }
