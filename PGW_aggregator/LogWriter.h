@@ -9,6 +9,7 @@
 #include <atomic>
 #include <boost/lockfree/queue.hpp>
 #include "Common.h"
+#include "OTL_Header.h"
 
 
 enum LogLevel
@@ -46,7 +47,8 @@ public:
     bool Initialize(const std::string& logPath, LogLevel logLevel);
     bool Write(std::string message, short threadIndex = mainThreadIndex, LogLevel msgLevel = notice);
 	bool Write(const LogMessage&);
-	void operator<<(const std::string&);
+    bool LogOtlException(const std::string& header, const otl_exception& otlEx, short threadIndex);
+    void operator<<(const std::string&);
 	inline std::exception_ptr GetException() { return m_excPointer; }
 	void ClearException();
 	bool Stop();
@@ -61,8 +63,8 @@ private:
 	std::atomic<bool> m_stopFlag;
 	std::thread m_writeThread;
 	std::mutex m_exceptionMutex;
-	std::ofstream m_logStream;
+    std::ofstream m_logStream;
 	std::string m_logFileDate;
-	void WriteThreadFunction();
+    void WriteThreadFunction();
     void SetLogStream(time_t messageTime);
 };

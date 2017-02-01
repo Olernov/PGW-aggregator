@@ -18,7 +18,6 @@ void ExportRules::ReadSettingsFromDatabase(otl_connect& connect)
         // another thread acquired the locking flag
         return;
     }
-    //std::cout << "Refreshing export rules ..." << std::endl;
     logWriter << "Refreshing export rules ...";
     // store DB connection for further settings auto refresh
     dbConnect = &connect;

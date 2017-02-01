@@ -21,29 +21,26 @@ public:
     void AddCdrToQueue(const GPRSRecord* gprsRecord);
     void AggregatorThreadFunc();
     void ProcessCDR(const PGWRecord &pGWRecord);
-    bool IsReady();
-	void PrintSessions();
+    bool IsReady() const;
     void CheckExportedData(AggregationTestType);
     void SetStopFlag();
-    std::exception_ptr PopException();
-private:
-    static const int cdrQueueSize = 100;
-
+    std::exception_ptr GetException() const { return exceptionPtr; }
     int sessionIndex;
-    unsigned long exportCount;
+private:
+    static const int cdrQueueSize = 500;
+
     boost::lockfree::queue<GPRSRecord*, boost::lockfree::fixed_sized<true>> cdrQueue;
     SessionMap sessions;
     std::thread thread;
     bool stopFlag;
     otl_connect dbConnect;
     std::exception_ptr exceptionPtr;
-    std::string lastExceptionText;
     std::atomic<bool> refreshInProgress;
 
     time_t lastIdleSessionsEject;
     std::mutex setExceptionMutex;
 
-    void ReconnectToDB();
+    //void ReconnectToDB();
     void CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
     SessionMap::iterator CreateSession(const PGWRecord& pGWRecord,
                        unsigned32 ratingGroup, unsigned32 volumeUplink, unsigned32 volumeDownlink);

@@ -30,22 +30,19 @@ public:
             unsigned32 volumeDownlinkAggregated,
             time_t startTime
 		);
+    unsigned32 chargingID;
     unsigned32 ratingGroup;
     time_t lastUpdateTime;
     time_t lastExportTime;
 
-    //inline unsigned32 GetRatingGroup() const
-    //    { return ratingGroup; }
     void ExportToDB(otl_connect& dbConnect);
-    void PrintSessionData(std::ostream& outStream);
+    std::string SessionDataDump();
     void UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownlinkIncrease,
                     unsigned32 durationIncrease, time_t newcdrTime);
     inline bool HaveDataToExport()
         { return volumeUplinkAggregated>0 || volumeDownlinkAggregated>0 || endTime>startTime; }
-    //inline time_t GetLastUpdateTime() const
-    //    { return lastUpdateTime; }
 private:
-    unsigned32 chargingID;
+
     unsigned64 iMSI;
     unsigned64 mSISDN;
     std::string iMEI;
@@ -59,10 +56,6 @@ private:
     unsigned64 volumeDownlinkExported;
     time_t startTime;
     time_t endTime;
-
-    //time_t lastExportErrorTime;
-    //ExportResult exportErrorCode;
-
 
     const time_t notInitialized = 0;
     friend class ExportRules;

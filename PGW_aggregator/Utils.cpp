@@ -86,7 +86,6 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
         throw std::string("Empty IP address given (NULL pointer)");
     unsigned32 ip_addr_ulong = 0;
     std::string textIP;
-	size_t prev_pos = 0, next_pos = 0;
 	unsigned int next_octet; // not uint8_t cause we will control 8-bit overflow
 	uint8_t num_octets;
 	switch(pIPAddress->present) {
@@ -261,13 +260,16 @@ bool Utils::Timestamp_to_time_t_Test()
     const char *dateStr = "160530153819+0300";
     OCTET_STRING_t* octetStr = OCTET_STRING_new_fromBuf(&asn_DEF_TimeStamp,
         dateStr, strlen(dateStr));
+    // TODO:
 }
 
 
 std::string Utils::Time_t_to_String(time_t timeT)
 {
     char buffer[20];
-    strftime(buffer, 20, "%Y%m%d%H%M%S", localtime(&timeT));
+    tm tmTime;
+    localtime_r(&timeT, &tmTime);
+    strftime(buffer, 20, "%Y%m%d%H%M%S", &tmTime);
     return std::string(buffer);
 }
 
@@ -507,6 +509,7 @@ bool Utils::SumDataVolumesByRatingGroup_Test()
     PGWRecord rec;
     void* ptr = &rec.listOfServiceData;
     ptr = calloc(1, sizeof(PGWRecord::listOfServiceData));
+    // TODO:
     return success;
 }
 
@@ -517,5 +520,6 @@ bool Utils::RunAllTests()
     assert(Utils::TBCDString_to_String_Test());
 	assert(Utils::IPAddress_to_ULong_Test());
 	assert(Utils::PLMNID_to_ULong_Test());
+    return true;
 }
 

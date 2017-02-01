@@ -83,27 +83,32 @@ void Session::ExportToDB(otl_connect& dbConnect)
         volumeUplinkAggregated = 0;
         volumeDownlinkExported += volumeDownlinkAggregated;
         volumeDownlinkAggregated = 0;
-        startTime = endTime = notInitialized;
+        startTime = notInitialized;
+        endTime = notInitialized;
         lastExportTime = time(nullptr);
     }
 }
 
 
-void Session::PrintSessionData(std::ostream& outStream)
+std::string Session::SessionDataDump()
 {
-    outStream << "------------------------" << std::endl;
-    outStream << "chargingID: " << chargingID << std::endl;
-    outStream << "IMSI: " << iMSI << std::endl;
-    outStream << "MSISDN: " << mSISDN << std::endl;
-    outStream << "IMEI: " << iMEI << std::endl;
-    outStream << "APN: " << accessPointName << std::endl;
-    outStream << "startTime: " << ctime(&startTime) << std::endl;
-    outStream << "endTime: " << ctime(&endTime) << std::endl;
-    outStream << "servingNodeAddress: " << servingNodeIP << std::endl;
-    outStream << "PLMN-ID: " << servingNodePLMNID << std::endl;
-    outStream << "rating group: " << ratingGroup << std::endl;
-    outStream << "volume uplink: " << volumeUplinkAggregated << std::endl;
-    outStream << "volume downlink: " << volumeDownlinkAggregated << std::endl;
+    return "Session data dump:" + crlf
+        + "chargingID: " + std::to_string(chargingID) + crlf
+        + "ratingGroup: " + std::to_string(ratingGroup) + crlf
+        + "IMSI: " + std::to_string(iMSI) + crlf
+        + "MSISDN: " + std::to_string(mSISDN) + crlf
+        + "IMEI: " + iMEI + crlf
+        + "APN: " + accessPointName + crlf
+        + "startTime: " + Utils::Time_t_to_String(startTime) + crlf
+        + "endTime: " + Utils::Time_t_to_String(endTime) + crlf
+        + "servingNodeAddress: " + std::to_string(servingNodeIP) + crlf
+        + "PLMN-ID: " + std::to_string(servingNodePLMNID) + crlf
+        + "volume uplink aggregated: " + std::to_string(volumeUplinkAggregated) + crlf
+        + "volume downlink aggregated: " + std::to_string(volumeDownlinkAggregated) + crlf
+        + "volume uplink exported: " + std::to_string(volumeUplinkExported) + crlf
+        + "volume downlink exported: " + std::to_string(volumeDownlinkExported) + crlf
+        + "lastUpdateTime: " + Utils::Time_t_to_String(lastUpdateTime) + crlf
+        + "lastExportTime: " + Utils::Time_t_to_String(lastExportTime);
 }
 
 

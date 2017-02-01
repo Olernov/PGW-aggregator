@@ -160,13 +160,14 @@ void Config::ValidateParams()
 
 std::string Config::DumpAllSettings()
 {
-    return connectStringParamName + ": " + connectString + "\r\n" +
-           inputDirParamName + ": " + inputDir + "\r\n" +
-            archiveDirParamName + ": " + archiveDir + "\r\n" +
-            logDirParamName + ": " + logDir + "\r\n" +
-            cdrExtensionParamName + ": " + cdrExtension + "\r\n" +
-            homePlmnIdParamName + ": " + std::to_string(homePlmnID) + "\r\n" +
-            sessionEjectPeriodParamName + ": " + std::to_string(sessionEjectPeriodMin) + "\r\n" +
-            exportRulesRefreshPeriodParamName + ": " + std::to_string(exportRulesRefreshPeriodMin);
+    return connectStringParamName + ": " + connectString + crlf +
+           inputDirParamName + ": " + inputDir + crlf +
+            archiveDirParamName + ": " + archiveDir + crlf +
+            logDirParamName + ": " + logDir + crlf +
+            cdrExtensionParamName + ": " + cdrExtension + crlf +
+            homePlmnIdParamName + ": " + std::to_string(homePlmnID) + crlf +
+            sessionEjectPeriodParamName + ": " + std::to_string(sessionEjectPeriodMin) + crlf +
+            exportRulesRefreshPeriodParamName + ": " + std::to_string(exportRulesRefreshPeriodMin) + crlf +
+            logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice"));
 }
 

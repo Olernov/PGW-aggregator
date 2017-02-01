@@ -8,6 +8,7 @@
 
 extern ExportRules exportRules;
 extern LogWriter logWriter;
+extern void ReconnectToDB(otl_connect& dbConnect, short sessionIndex);
 
 std::mutex mutex;
 
@@ -17,33 +18,30 @@ Aggregator::Aggregator(int index) :
     sessionIndex(index),
     cdrQueue(cdrQueueSize),
     stopFlag(false),
-    exportCount(0),
     exceptionPtr(nullptr)
 {
     time(&lastIdleSessionsEject);
     thread = std::thread(&Aggregator::AggregatorThreadFunc, this);
 }
 
+
 void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 {
     bool queueIsFull = false;
     while (!cdrQueue.push(const_cast<GPRSRecord*>(gprsRecord))) {
         if (!queueIsFull) {
-            logWriter.Write("AddCdrToQueue failure: CDR queue max size reached (" + std::to_string(cdrQueueSize) + ")",
+            logWriter.Write("AddCdrToQueue: CDR queue max size reached (" + std::to_string(cdrQueueSize) + ")",
                             sessionIndex, debug);
             queueIsFull = true;
         }
         std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
-    }
-    if (queueIsFull) {
-        logWriter.Write("AddCdrToQueue success", sessionIndex, debug);
     }
 }
 
 
 void Aggregator::AggregatorThreadFunc()
 {
-    ReconnectToDB();
+    ReconnectToDB(dbConnect, sessionIndex);
     bool cdrFound = false;
     while (!(stopFlag && cdrQueue.empty())) {
         GPRSRecord* gprsRecord;
@@ -69,9 +67,9 @@ void Aggregator::AggregatorThreadFunc()
             }
         }
     }
-    logWriter.Write("Shutdown flag set. Exporting all remaining sessions: " + std::to_string(sessions.size()), sessionIndex);
+    logWriter.Write("Shutdown flag set.", sessionIndex);
     ExportAllSessionsToDB();
-    logWriter.Write("All sessions exported. Thread finish", sessionIndex);
+    logWriter.Write("Thread finish", sessionIndex);
     if (dbConnect.connected) {
         dbConnect.commit();
         dbConnect.logoff();
@@ -79,64 +77,55 @@ void Aggregator::AggregatorThreadFunc()
 }
 
 
-void Aggregator::ReconnectToDB()
-{
-    try {
-        if (dbConnect.connected) {
-            dbConnect.logoff();
-        }
-    }
-    catch(const otl_exception& ex) {
-    }
+//void Aggregator::ReconnectToDB()
+//{
+//    try {
+//        dbConnect.logoff();
+//    }
+//    catch(const otl_exception& ex) {
+//        // no reaction for possible exception
+//    }
 
-    try {
-        dbConnect.rlogon(config.connectString.c_str());
-        ClearExceptionPtr();
-        lastExceptionText.clear();
-        logWriter.Write("Connected successfully", sessionIndex);
-    }
-    catch(const otl_exception& ex) {
-        if (lastExceptionText != reinterpret_cast<const char*>(ex.msg)) {
-            logWriter.Write("**** DB ERROR while logging in ****", sessionIndex);
-            logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
-            logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
-            logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
-            lastExceptionText = reinterpret_cast<const char*>(ex.msg);
-        }
-        dbConnect.connected = false;
-        SetExceptionPtr();
-    }
-}
+//    try {
+//        dbConnect.rlogon(config.connectString.c_str());
+//        //ClearExceptionPtr();
+//        logWriter.Write("(Re)Connected successfully", sessionIndex);
+//    }
+//    catch(const otl_exception& ex) {
+//        //LogOtlException(ex);
+//        logWriter.LogOtlException("**** DB ERROR while connecting to DB: ****", ex, sessionIndex);
+//        dbConnect.connected = false;
+//        SetExceptionPtr();
+//    }
+//}
 
 
 void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
 {
-    if (pGWRecord.servedIMSI && pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
-        DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(pGWRecord);
-        auto eqRange = sessions.equal_range(pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
-		if (eqRange.first == eqRange.second) {
-			// not found
-             CreateSessionsAndExport(pGWRecord, dataVolumes);
-		}
-		else {
-			// one or more sessions having this Charging ID are found, try to find appropriate rating group
-			for (auto sessionIter = eqRange.first; sessionIter != eqRange.second; ++sessionIter) {
-                auto dataVolumeIter = dataVolumes.find(sessionIter->second.get()->ratingGroup);
-				if (dataVolumeIter != dataVolumes.end()) {
-					// session having same rating group found, update values
-                    sessionIter->second.get()->UpdateData(dataVolumeIter->second.volumeUplink,
-                                                      dataVolumeIter->second.volumeDownlink,
-                                                      pGWRecord.duration,
-                                                      Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime));
-                    if (exportRules.IsReadyForExport(sessionIter->second)) {
-                        ExportSession(sessionIter->second);
-                    }
-                    dataVolumes.erase(dataVolumeIter);
-				}
-			}
-            CreateSessionsAndExport(pGWRecord, dataVolumes);
-		}
-	}
+    DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(pGWRecord);
+    auto eqRange = sessions.equal_range(pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
+    if (eqRange.first == eqRange.second) {
+        // not found
+         CreateSessionsAndExport(pGWRecord, dataVolumes);
+    }
+    else {
+        // one or more sessions having this Charging ID are found, try to find appropriate rating group
+        for (auto sessionIter = eqRange.first; sessionIter != eqRange.second; ++sessionIter) {
+            auto dataVolumeIter = dataVolumes.find(sessionIter->second.get()->ratingGroup);
+            if (dataVolumeIter != dataVolumes.end()) {
+                // session having same rating group found, update values
+                sessionIter->second.get()->UpdateData(dataVolumeIter->second.volumeUplink,
+                                                  dataVolumeIter->second.volumeDownlink,
+                                                  pGWRecord.duration,
+                                                  Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime));
+                if (exportRules.IsReadyForExport(sessionIter->second)) {
+                    ExportSession(sessionIter->second);
+                }
+                dataVolumes.erase(dataVolumeIter);
+            }
+        }
+        CreateSessionsAndExport(pGWRecord, dataVolumes);
+    }
 }
 
 
@@ -178,45 +167,35 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
     if (!dbConnect.connected) {
-        //logWriter.Write("Not connected to DB, trying to connect ...", sessionIndex, debug);
-        ReconnectToDB();
+        ReconnectToDB(dbConnect, sessionIndex);
     }
     if (dbConnect.connected) {
         try {
             sessionPtr.get()->ExportToDB(dbConnect);
             ClearExceptionPtr();
-            lastExceptionText.clear();
         }
         catch(const otl_exception& ex) {
-            if (lastExceptionText != reinterpret_cast<const char*>(ex.msg)) {
-                logWriter.Write("**** DB ERROR while exporting session ****", sessionIndex);
-                logWriter.Write(reinterpret_cast<const char*>(ex.msg), sessionIndex);
-                logWriter.Write(reinterpret_cast<const char*>(ex.stm_text), sessionIndex);
-                logWriter.Write(reinterpret_cast<const char*>(ex.var_info), sessionIndex);
-                lastExceptionText = reinterpret_cast<const char*>(ex.msg);
-            }
+            logWriter.LogOtlException("**** DB ERROR while exporting chargingID " +
+                std::to_string(sessionPtr.get()->chargingID) + ": ****", ex, sessionIndex);
+            logWriter.Write(sessionPtr.get()->SessionDataDump(), sessionIndex);
             dbConnect.connected = false;
             SetExceptionPtr();
-            ReconnectToDB();
+            ReconnectToDB(dbConnect, sessionIndex);
         }
-    }
-    exportCount++;
-}
-
-
-void Aggregator::PrintSessions()
-{
-    for (auto& it : sessions) {
-        it.second.get()->PrintSessionData(std::cout);
     }
 }
 
 
 void Aggregator::ExportAllSessionsToDB()
 {
-    for (auto it = sessions.begin(); it != sessions.end(); it++) {
-        ExportSession(it->second);
+    while (std::any_of(sessions.begin(), sessions.end(),
+                       [](std::pair<unsigned32, Session_ptr> mp) { return mp.second.get()->HaveDataToExport(); })) {
+        logWriter.Write("Exporting all sessions: " + std::to_string(sessions.size()), sessionIndex);
+        for (auto& it : sessions) {
+            ExportSession(it.second);
+        }
     }
+    logWriter.Write("All sessions exported.", sessionIndex);
 }
 
 
@@ -252,15 +231,7 @@ void Aggregator::ClearExceptionPtr()
 }
 
 
-std::exception_ptr Aggregator::PopException()
-{
-    std::lock_guard<std::mutex> lock(setExceptionMutex);
-    std::exception_ptr ex = exceptionPtr;
-    //exceptionPtr = nullptr;
-    return ex;
-}
-
-bool Aggregator::IsReady()
+bool Aggregator::IsReady() const
 {
     return dbConnect.connected && (exceptionPtr == nullptr);
 }
@@ -270,7 +241,6 @@ void Aggregator::SetStopFlag()
 {
     stopFlag = true;
 }
-
 
 Aggregator::~Aggregator()
 {

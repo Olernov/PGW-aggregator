@@ -57,7 +57,7 @@ void RunAllTests(otl_connect& dbConnect)
         dbConnect.commit();
 
         time_t testStart = time(nullptr);
-        Parser parser(config.sampleCdrDir, config.cdrExtension, config.archiveDir, config.badDir);
+        Parser parser(config.sampleCdrDir, config.cdrExtension, config.archiveDir, config.badDir, dbConnect);
         // uncomment if printing file contents neeeded:
             //parser.SetPrintContents(true);
         parser.ProcessCdrFiles();
@@ -73,6 +73,27 @@ void printUsage()
 {
     std::cerr << "Usage: " << std::endl << "pgw-aggregator <config-file> [-test]" << std::endl;
 }
+
+
+void ReconnectToDB(otl_connect& dbConnect, short sessionIndex)
+{
+    try {
+        dbConnect.logoff();
+    }
+    catch(const otl_exception& ex) {
+        // no reaction for possible exception
+    }
+
+    try {
+        dbConnect.rlogon(config.connectString.c_str());
+        logWriter.Write("(Re)Connected successfully", sessionIndex);
+    }
+    catch(const otl_exception& ex) {
+        logWriter.LogOtlException("**** DB ERROR while logging to DB: ****", ex, sessionIndex);
+        dbConnect.connected = false;
+    }
+}
+
 
 int main(int argc, const char* argv[])
 {
@@ -107,25 +128,25 @@ int main(int argc, const char* argv[])
     const int OTL_MULTITHREADED_MODE = 1;
     otl_connect::otl_initialize(OTL_MULTITHREADED_MODE);
 	otl_connect dbConnect;
-	try {
-        dbConnect.rlogon(config.connectString.c_str());
+    ReconnectToDB(dbConnect, mainThreadIndex);
+    if (!dbConnect.connected) {
+        std::cerr << "Unable to log to DB. " << std::endl;
+    }
+
+    try {
         exportRules.ReadSettingsFromDatabase(dbConnect);
         if (runTests) {
             RunAllTests(dbConnect);
         }
         else {
-            Parser parser(config.inputDir, config.cdrExtension, config.archiveDir, config.badDir);
+            Parser parser(config.inputDir, config.cdrExtension, config.archiveDir, config.badDir, dbConnect);
             parser.ProcessCdrFiles();
         }
         dbConnect.commit();
 		dbConnect.logoff();
 	}
     catch(otl_exception& ex) {
-        // TODO: add correct processing
-        logWriter << "*************  DB ERROR in main thread: **********";
-        logWriter << reinterpret_cast<const char*>(ex.msg);
-        logWriter << reinterpret_cast<const char*>(ex.stm_text);
-        logWriter << reinterpret_cast<const char*>(ex.var_info);
+        logWriter.LogOtlException("**** DB ERROR in main thread: ****", ex, mainThreadIndex);
 	}
     logWriter << "PGW aggregator shutdown";
     logWriter.Stop();
