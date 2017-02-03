@@ -76,7 +76,6 @@ void Session::ExportToDB(otl_connect& dbConnect)
                     << static_cast<long>(ratingGroup)
                     << static_cast<signed64>(volumeUplinkAggregated)
                     << static_cast<signed64>(volumeDownlinkAggregated);
-
         dbStream.close();
 
         volumeUplinkExported += volumeUplinkAggregated;

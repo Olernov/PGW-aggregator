@@ -44,6 +44,7 @@ class LogWriter
 {
 public:
 	LogWriter();
+    ~LogWriter();
     bool Initialize(const std::string& logPath, LogLevel logLevel);
     bool Write(std::string message, short threadIndex = mainThreadIndex, LogLevel msgLevel = notice);
 	bool Write(const LogMessage&);
@@ -51,7 +52,6 @@ public:
     void operator<<(const std::string&);
 	inline std::exception_ptr GetException() { return m_excPointer; }
 	void ClearException();
-	bool Stop();
 private:
 	static const int queueSize = 128;
     static const int sleepWhenQueueEmpty = 3;

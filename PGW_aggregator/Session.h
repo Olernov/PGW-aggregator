@@ -57,7 +57,6 @@ private:
     time_t startTime;
     time_t endTime;
 
-    const time_t notInitialized = 0;
     friend class ExportRules;
 };
 

@@ -21,11 +21,10 @@ public:
     void AddCdrToQueue(const GPRSRecord* gprsRecord);
     void AggregatorThreadFunc();
     void ProcessCDR(const PGWRecord &pGWRecord);
-    bool IsReady() const;
+    std::string GetExceptionMessage() const;
     void CheckExportedData(AggregationTestType);
     void SetStopFlag();
-    std::exception_ptr GetException() const { return exceptionPtr; }
-    int sessionIndex;
+    int thisIndex;
 private:
     static const int cdrQueueSize = 500;
 
@@ -34,7 +33,7 @@ private:
     std::thread thread;
     bool stopFlag;
     otl_connect dbConnect;
-    std::exception_ptr exceptionPtr;
+    std::string exceptionText;
     std::atomic<bool> refreshInProgress;
 
     time_t lastIdleSessionsEject;
@@ -47,8 +46,8 @@ private:
     void ExportSession(Session_ptr sessionPtr);
     void ExportAllSessionsToDB();
     void EjectIdleSessions();
-    void SetExceptionPtr();
-    void ClearExceptionPtr();
+    void SetExceptionText(const std::string&);
+    void ClearExceptionText();
 };
 
 typedef std::shared_ptr<Aggregator> Aggregator_ptr;

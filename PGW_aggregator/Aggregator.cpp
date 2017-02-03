@@ -8,17 +8,16 @@
 
 extern ExportRules exportRules;
 extern LogWriter logWriter;
-extern void ReconnectToDB(otl_connect& dbConnect, short sessionIndex);
+extern void Reconnect(otl_connect& dbConnect, short sessionIndex);
 
 std::mutex mutex;
 
 extern Config config;
 
 Aggregator::Aggregator(int index) :
-    sessionIndex(index),
+    thisIndex(index),
     cdrQueue(cdrQueueSize),
-    stopFlag(false),
-    exceptionPtr(nullptr)
+    stopFlag(false)
 {
     time(&lastIdleSessionsEject);
     thread = std::thread(&Aggregator::AggregatorThreadFunc, this);
@@ -31,7 +30,7 @@ void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
     while (!cdrQueue.push(const_cast<GPRSRecord*>(gprsRecord))) {
         if (!queueIsFull) {
             logWriter.Write("AddCdrToQueue: CDR queue max size reached (" + std::to_string(cdrQueueSize) + ")",
-                            sessionIndex, debug);
+                            thisIndex, debug);
             queueIsFull = true;
         }
         std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
@@ -41,7 +40,7 @@ void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 
 void Aggregator::AggregatorThreadFunc()
 {
-    ReconnectToDB(dbConnect, sessionIndex);
+    Reconnect(dbConnect, thisIndex);
     bool cdrFound = false;
     while (!(stopFlag && cdrQueue.empty())) {
         GPRSRecord* gprsRecord;
@@ -55,7 +54,7 @@ void Aggregator::AggregatorThreadFunc()
         else {
             if (cdrFound) {
                 logWriter.Write("CDR queue has been processed. Sessions count: " + std::to_string(sessions.size()),
-                                sessionIndex);
+                                thisIndex);
                 cdrFound = false;
             }
             if (Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) > config.sessionEjectPeriodMin) {
@@ -67,9 +66,9 @@ void Aggregator::AggregatorThreadFunc()
             }
         }
     }
-    logWriter.Write("Shutdown flag set.", sessionIndex);
+    logWriter.Write("Shutdown flag set.", thisIndex);
     ExportAllSessionsToDB();
-    logWriter.Write("Thread finish", sessionIndex);
+    logWriter.Write("Thread finish", thisIndex);
     if (dbConnect.connected) {
         dbConnect.commit();
         dbConnect.logoff();
@@ -167,20 +166,19 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
     if (!dbConnect.connected) {
-        ReconnectToDB(dbConnect, sessionIndex);
+        Reconnect(dbConnect, thisIndex);
     }
     if (dbConnect.connected) {
         try {
             sessionPtr.get()->ExportToDB(dbConnect);
-            ClearExceptionPtr();
+            ClearExceptionText();
         }
         catch(const otl_exception& ex) {
-            logWriter.LogOtlException("**** DB ERROR while exporting chargingID " +
-                std::to_string(sessionPtr.get()->chargingID) + ": ****", ex, sessionIndex);
-            logWriter.Write(sessionPtr.get()->SessionDataDump(), sessionIndex);
-            dbConnect.connected = false;
-            SetExceptionPtr();
-            ReconnectToDB(dbConnect, sessionIndex);
+            SetExceptionText(Utils::OtlExceptionToText(ex));
+            logWriter.Write("**** DB ERROR while exporting chargingID " +
+                std::to_string(sessionPtr.get()->chargingID) + ": ****" + crlf + exceptionText, thisIndex);
+            logWriter.Write(sessionPtr.get()->SessionDataDump(), thisIndex);
+            Reconnect(dbConnect, thisIndex);
         }
     }
 }
@@ -190,18 +188,18 @@ void Aggregator::ExportAllSessionsToDB()
 {
     while (std::any_of(sessions.begin(), sessions.end(),
                        [](std::pair<unsigned32, Session_ptr> mp) { return mp.second.get()->HaveDataToExport(); })) {
-        logWriter.Write("Exporting all sessions: " + std::to_string(sessions.size()), sessionIndex);
+        logWriter.Write("Exporting all sessions: " + std::to_string(sessions.size()), thisIndex);
         for (auto& it : sessions) {
             ExportSession(it.second);
         }
     }
-    logWriter.Write("All sessions exported.", sessionIndex);
+    logWriter.Write("All sessions exported.", thisIndex);
 }
 
 
 void Aggregator::EjectIdleSessions()
 {
-    logWriter.Write("Start of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), sessionIndex);
+    logWriter.Write("Start of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), thisIndex);
     time_t now;
     time(&now);
     for (auto it = sessions.begin(); it != sessions.end(); it++) {
@@ -213,27 +211,34 @@ void Aggregator::EjectIdleSessions()
         }
     }
     time(&lastIdleSessionsEject);
-    logWriter.Write("Finish of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), sessionIndex);
+    logWriter.Write("Finish of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), thisIndex);
 }
 
 
-void Aggregator::SetExceptionPtr()
+void Aggregator::SetExceptionText(const std::string& excText)
 {
     std::lock_guard<std::mutex> lock(setExceptionMutex);
-    exceptionPtr = std::current_exception();
+    exceptionText = excText;
 }
 
 
-void Aggregator::ClearExceptionPtr()
+void Aggregator::ClearExceptionText()
 {
     std::lock_guard<std::mutex> lock(setExceptionMutex);
-    exceptionPtr = nullptr;
+    exceptionText.clear();
 }
 
 
-bool Aggregator::IsReady() const
+std::string Aggregator::GetExceptionMessage() const
 {
-    return dbConnect.connected && (exceptionPtr == nullptr);
+    if (!exceptionText.empty()) {
+        return exceptionText;
+    }
+
+    if(!dbConnect.connected) {
+        return "Not connected to DB";
+    }
+    return "";
 }
 
 

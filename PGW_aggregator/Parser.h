@@ -32,6 +32,7 @@ public:
     void SetStopFlag();
 	void SetPrintContents(bool);
 private:
+
     std::string cdrFilesDirectory; 
     std::string cdrExtension;
     std::string cdrArchiveDirectory;
@@ -42,6 +43,10 @@ private:
     bool printFileContents;
     bool stopFlag;
     std::string lastExceptionText;
+
+    const size_t maxAlertMessageLen = 2000;
+    std::string lastAlertMessage;
+    time_t lastAlertTime;
 
     void ProcessFile(const filesystem::path& file, const std::string& cdrArchiveDirectory,
                      const std::string &cdrBadDirectory);

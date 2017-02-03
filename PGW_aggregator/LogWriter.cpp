@@ -132,11 +132,10 @@ void LogWriter::ClearException()
 	m_excPointer = nullptr;
 }
 
-bool LogWriter::Stop()
+LogWriter::~LogWriter()
 {
-	m_stopFlag = true;
-	if (m_writeThread.joinable())
-		m_writeThread.join();
-	m_logStream.close();
-	return true;
+    m_stopFlag = true;
+    if (m_writeThread.joinable())
+        m_writeThread.join();
+    m_logStream.close();
 }

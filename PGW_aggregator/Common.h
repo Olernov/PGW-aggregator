@@ -17,6 +17,9 @@ const int mainThreadIndex = -1;
 const unsigned32 megabyteSizeInBytes = 1024 * 1024;
 const int secondsToSleepWhenNothingToDo = 3;
 const int maxPath = 1000;
+const int maxAttemptsToWriteToDB = 5;
+
+const time_t notInitialized = 0;
 
 enum ExportResult
 {

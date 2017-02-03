@@ -44,29 +44,6 @@ void RunStoredLogicTests(otl_connect& dbConnect)
 
 }
 
-void RunAllTests(otl_connect& dbConnect)
-{
-    Utils::RunAllTests();
-    RunStoredLogicTests(dbConnect);
-
-    std::cout << "Further sample CDR test requires deletion from Mobile_Session table. Proceed (y/n)?";
-    char confirmation;
-    std::cin >> confirmation;
-    if (confirmation == 'y' || confirmation == 'Y') {
-        ClearTestExportTable(dbConnect);
-        dbConnect.commit();
-
-        time_t testStart = time(nullptr);
-        Parser parser(config.sampleCdrDir, config.cdrExtension, config.archiveDir, config.badDir, dbConnect);
-        // uncomment if printing file contents neeeded:
-            //parser.SetPrintContents(true);
-        parser.ProcessCdrFiles();
-        std::cout << "Export consumed " << difftime(time(nullptr), testStart) << " seconds" << std::endl;
-        std::cout << "Checking exported data ..." << std::endl;
-        CheckExportedData(dbConnect);
-        std::cout << "Total aggregation test PASSED." << std::endl;
-    }
-}
 
 
 void printUsage()
@@ -75,22 +52,23 @@ void printUsage()
 }
 
 
-void ReconnectToDB(otl_connect& dbConnect, short sessionIndex)
+void Reconnect(otl_connect& dbConnect, short sessionIndex)
 {
     try {
         dbConnect.logoff();
     }
     catch(const otl_exception& ex) {
-        // no reaction for possible exception
+        // don't react on possible exception
     }
-
+    dbConnect.connected = false;
     try {
         dbConnect.rlogon(config.connectString.c_str());
         logWriter.Write("(Re)Connected successfully", sessionIndex);
+        dbConnect.connected = true;
     }
     catch(const otl_exception& ex) {
-        logWriter.LogOtlException("**** DB ERROR while logging to DB: ****", ex, sessionIndex);
-        dbConnect.connected = false;
+        logWriter.Write("**** DB ERROR while logging to DB: **** " + crlf +
+            Utils::OtlExceptionToText(ex) + ": ****", sessionIndex);
     }
 }
 
@@ -128,27 +106,49 @@ int main(int argc, const char* argv[])
     const int OTL_MULTITHREADED_MODE = 1;
     otl_connect::otl_initialize(OTL_MULTITHREADED_MODE);
 	otl_connect dbConnect;
-    ReconnectToDB(dbConnect, mainThreadIndex);
+    Reconnect(dbConnect, mainThreadIndex);
     if (!dbConnect.connected) {
         std::cerr << "Unable to log to DB. " << std::endl;
     }
 
+    time_t testStart;
     try {
         exportRules.ReadSettingsFromDatabase(dbConnect);
         if (runTests) {
-            RunAllTests(dbConnect);
+            Utils::RunAllTests();
+            RunStoredLogicTests(dbConnect);
+            std::cout << "Further sample CDR test requires deletion from Mobile_Session table. Proceed (y/n)?"
+                    << std::endl << "> ";
+            char confirmation;
+//            std::cin >> confirmation;
+//            if (confirmation != 'y' && confirmation != 'Y') {
+//                exit(EXIT_SUCCESS);
+//            }
+            ClearTestExportTable(dbConnect);
+            dbConnect.commit();
+                        std::cout << "Put 33 files from SampleCDR directory to your INPUT_DIR and type y to proceed"
+                                << std::endl << "> ";
+            //            std::cin >> confirmation;
+            std::cout << "Loading sample CDR files ..." << std::endl;
+            std::cout << "After all sample CDR files are loaded please stop PGW aggregator as usual. "
+                         "Then export checks would start automatically" << std::endl;
+            testStart = time(nullptr);
         }
-        else {
-            Parser parser(config.inputDir, config.cdrExtension, config.archiveDir, config.badDir, dbConnect);
-            parser.ProcessCdrFiles();
+        Parser parser(config.inputDir, config.cdrExtension, config.archiveDir, config.badDir, dbConnect);
+        parser.ProcessCdrFiles();
+        if (runTests) {
+            std::cout << "Test consumed " << Utils::DiffMinutes(time(nullptr), testStart) << " minutes" << std::endl;
+            std::cout << "Checking exported data ..." << std::endl;
+            CheckExportedData(dbConnect);
+            std::cout << "All tests PASSED." << std::endl;
         }
+
         dbConnect.commit();
 		dbConnect.logoff();
 	}
     catch(otl_exception& ex) {
-        logWriter.LogOtlException("**** DB ERROR in main thread: ****", ex, mainThreadIndex);
+        std::cerr << Utils::OtlExceptionToText(ex) << std::endl;
 	}
     logWriter << "PGW aggregator shutdown";
-    logWriter.Stop();
     return 0;
 }

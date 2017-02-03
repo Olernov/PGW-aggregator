@@ -9,7 +9,7 @@
 
 extern Config config;
 extern LogWriter logWriter;
-extern void ReconnectToDB(otl_connect& dbConnect, short sessionIndex);
+extern void Reconnect(otl_connect& dbConnect, short sessionIndex);
 
 Parser::Parser(const std::string &filesDirectory, const std::string &extension, const std::string &archDirectory, 
                const std::string &badDirectory, otl_connect& connect) :
@@ -19,7 +19,8 @@ Parser::Parser(const std::string &filesDirectory, const std::string &extension, 
     cdrBadDirectory(badDirectory),
     dbConnect(connect),
     stopFlag(false),
-    printFileContents(false)
+    printFileContents(false),
+    lastAlertTime(notInitialized)
 {
     aggregators.reserve(config.threadCount);
     for (int i =0; i < config.threadCount; i++) {
@@ -33,8 +34,8 @@ void Parser::ProcessCdrFiles()
 	filesystem::path cdrPath(cdrFilesDirectory);
 
     bool parserSuspend = false;
-    while(!IsShutdownFlagSet()) {
-        try {
+    try {
+        while(!IsShutdownFlagSet()) {
             filesystem::directory_iterator endIterator;
             bool filesFound = false;
             for(filesystem::directory_iterator dirIterator(cdrPath); dirIterator != endIterator; dirIterator++) {
@@ -43,11 +44,11 @@ void Parser::ProcessCdrFiles()
                     filesFound = true;
                     parserSuspend = false;
                     if (std::all_of(aggregators.begin(), aggregators.end(), [](Aggregator_ptr& aggr)
-                                                                            { return aggr.get()->IsReady(); } )) {
+                                                                            { return aggr.get()->GetExceptionMessage().empty(); } )) {
                         ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
                     }
                     else {
-                        logWriter.Write("Some aggregators are not ready. Processing postponed.", mainThreadIndex, debug);
+                        logWriter.Write("Some aggregators have errors. Processing postponed.", mainThreadIndex, debug);
                         AlertAggregatorExceptions();
                         Sleep();
                     }
@@ -64,17 +65,11 @@ void Parser::ProcessCdrFiles()
                 Sleep();
             }
         }
-        catch(const otl_exception& ex) {
-            logWriter.LogOtlException("**** DB ERROR in main thread: ****", ex, mainThreadIndex);
-            ReconnectToDB(dbConnect, mainThreadIndex);
-        }
-        catch(const std::exception& ex) {
-            if (lastExceptionText != ex.what()) {
-                logWriter.Write("Parser ERROR: ", mainThreadIndex, error);
-                logWriter.Write(ex.what(), mainThreadIndex, error);
-                lastExceptionText = ex.what();
-            }
-        }
+    }
+    catch(const std::exception& ex) {
+            logWriter.Write("Parser ERROR: ", mainThreadIndex, error);
+            logWriter.Write(ex.what(), mainThreadIndex, error);
+            lastExceptionText = ex.what();
     }
     logWriter << "Shutting down ...";
 }
@@ -91,10 +86,12 @@ void Parser::ProcessFile(const filesystem::path& file, const std::string& cdrArc
     logWriter << "Processing file " + file.filename().string() + "...";
     try {
         auto totals = ParseFile(pgwFile, file.string());
-        filesystem::path archivePath(cdrArchiveDirectory);
-        filesystem::path archiveFilename = archivePath / file.filename();
+        if (!cdrArchiveDirectory.empty()) {
+            filesystem::path archivePath(cdrArchiveDirectory);
+            filesystem::path archiveFilename = archivePath / file.filename();
+            filesystem::rename(file, archiveFilename);
+        }
         logWriter << "File " + file.filename().string() + " processed.";
-        filesystem::rename(file, archiveFilename);
         RegisterFileStats(file.filename().string(), totals);
     }
     catch(const parse_error& ex) {
@@ -179,52 +176,63 @@ void Parser::Accumulate(CdrFileTotals& totals, const PGWRecord& pGWRecord)
 
 void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals)
 {
-    // TODO: catch exceptions
-    otl_stream dbStream;
-    dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
-                  ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/ )", dbConnect);
-    dbStream
-            << filename
-            << static_cast<signed64>(totals.volumeUplink)
-            << static_cast<signed64>(totals.volumeDownlink)
-            << static_cast<long>(totals.recordCount);
-    dbStream.close();
-    dbConnect.commit();
+    int attemptCount = 0;
+    while (attemptCount++ < maxAttemptsToWriteToDB) {
+        try {
+            otl_stream dbStream;
+            dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
+                          ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/ )", dbConnect);
+            dbStream
+                    << filename
+                    << static_cast<signed64>(totals.volumeUplink)
+                    << static_cast<signed64>(totals.volumeDownlink)
+                    << static_cast<long>(totals.recordCount);
+            dbStream.close();
+            break;
+        }
+        catch(const otl_exception& ex) {
+            logWriter.LogOtlException("**** DB ERROR in main thread while RegisterFileStats: ****", ex, mainThreadIndex);
+            Reconnect(dbConnect, mainThreadIndex);
+        }
+    }
 }
 
 void Parser::AlertAggregatorExceptions()
 {
     std::string alertMessage;
     for (auto& aggr : aggregators) {
-        if (!aggr.get()->IsReady()) {
-            std::exception_ptr exPtr = aggr.get()->GetException();
-            if (exPtr != nullptr) {
-                try {
-                    std::rethrow_exception(exPtr);
-                }
-                catch(const otl_exception& ex) {
-                    alertMessage += "**** DB ERROR in aggregating thread #" +
-                        std::to_string(aggr.get()->sessionIndex) + crlf +
-                        reinterpret_cast<const char*>(ex.msg) + crlf +
-                        reinterpret_cast<const char*>(ex.stm_text) + crlf +
-                        reinterpret_cast<const char*>(ex.var_info) + crlf;
-                }
-                catch(const std::exception& ex) {
-                    alertMessage += "**** ERROR in aggregating thread #" +
-                       std::to_string(aggr.get()->sessionIndex) + crlf +
-                       ex.what() + crlf;
-                }
-            }
+        std::string errorMessage = aggr.get()->GetExceptionMessage();
+        if (!errorMessage.empty()) {
+            alertMessage += "Error in aggregating thread #" + std::to_string(aggr.get()->thisIndex) + ": " +
+                    errorMessage + crlf;
+        }
+        if (alertMessage.length() >= maxAlertMessageLen) {
+            alertMessage.erase(maxAlertMessageLen-1);
+            break;
         }
     }
+
     if (!alertMessage.empty()) {
-        logWriter.Write("Sending AlertAggregatorExceptions:", mainThreadIndex, debug);
-        logWriter.Write(alertMessage, mainThreadIndex, debug);
-        otl_stream dbStream;
-        dbStream.open(1, "call Billing.Mobile_Data_Charger.SendAlert(:message /*char[5000]*/)", dbConnect);
-        dbStream << alertMessage;
-        dbStream.close();
-        dbConnect.commit();
+        if (Utils::DiffMinutes(time(nullptr), lastAlertTime) >= config.alertRepeatPeriodMin) {
+            int attemptCount = 0;
+            while (attemptCount++ < maxAttemptsToWriteToDB) {
+                try {
+                    otl_stream dbStream;
+                    dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
+                                   std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
+                    dbStream << alertMessage;
+                    dbStream.close();
+                    break;
+                }
+                catch(const otl_exception& ex) {
+                    logWriter.LogOtlException("**** DB ERROR in main thread while AlertAggregatorExceptions: ****",
+                                              ex, mainThreadIndex);
+                    Reconnect(dbConnect, mainThreadIndex);
+                }
+            }
+            lastAlertMessage = alertMessage;
+            lastAlertTime = time(nullptr);
+        }
     }
 }
 
@@ -264,4 +272,5 @@ Parser::~Parser()
     SetStopFlag();
     filesystem::remove(shutdownFlagFilename);
 }
+
 

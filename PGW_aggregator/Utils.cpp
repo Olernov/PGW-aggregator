@@ -313,7 +313,14 @@ std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRe
     return dataVolumes;
 }
 
+std::string Utils::OtlExceptionToText(const otl_exception& otlEx)
+{
+    return std::string(reinterpret_cast<const char*>(otlEx.msg)) + crlf +
+        reinterpret_cast<const char*>(otlEx.stm_text)+ crlf +
+        reinterpret_cast<const char*>(otlEx.var_info);
+}
 
+//// Tests /////
 
 bool Utils::TBCDString_to_String_Test()
 {

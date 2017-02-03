@@ -9,7 +9,8 @@ Config::Config() :
     sessionEjectPeriodMin(30),
     exportRulesRefreshPeriodMin(30),
     cdrExtension(".dat"),
-    logLevel(notice)
+    logLevel(notice),
+    alertRepeatPeriodMin(15)
 {
 }
 
@@ -19,15 +20,6 @@ Config::Config(std::ifstream& configStream) :
 {
     ReadConfigFile(configStream);
 }
-
-//void Config::SetDefaults()
-//{
-//    threadCount = 8;
-//    homePlmnID = 25027;
-//    sessionEjectPeriodMin = 30;
-//    exportRulesRefreshPeriodMin = 30;
-//    cdrExtension = ".dat";
-//}
 
 
 void Config::ReadConfigFile(std::ifstream& configStream)
@@ -76,9 +68,6 @@ void Config::ReadConfigFile(std::ifstream& configStream)
         else if (option_name == logDirParamName) {
             logDir = option_value;
         }
-        else if (option_name == sampleCdrDirParamName) {
-            sampleCdrDir = option_value;
-        }
         else if (option_name == cdrExtensionParamName) {
             cdrExtension == option_value;
         }
@@ -107,6 +96,9 @@ void Config::ReadConfigFile(std::ifstream& configStream)
             else {
                 throw std::runtime_error("Wrong value passed for " + option_name + ".");
             }
+        }
+        else if (option_name == alertRepeatPeriodParamName) {
+            alertRepeatPeriodMin = ParseULongValue(option_name, option_value);
         }
         else if (!option_name.empty()){
             throw std::runtime_error("Unknown parameter " + option_name + " found");
@@ -168,6 +160,7 @@ std::string Config::DumpAllSettings()
             homePlmnIdParamName + ": " + std::to_string(homePlmnID) + crlf +
             sessionEjectPeriodParamName + ": " + std::to_string(sessionEjectPeriodMin) + crlf +
             exportRulesRefreshPeriodParamName + ": " + std::to_string(exportRulesRefreshPeriodMin) + crlf +
-            logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice"));
+            logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice")) + crlf +
+            alertRepeatPeriodParamName + ": " + std::to_string(alertRepeatPeriodMin);
 }
 
