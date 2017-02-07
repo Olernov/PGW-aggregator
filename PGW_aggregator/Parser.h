@@ -53,6 +53,7 @@ private:
     CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
     //void AggregateCDRsFromQueue();
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
+    bool ChargingAllowed();
     void Accumulate(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);
     void RegisterFileStats(const std::string& filename, CdrFileTotals totals);
     void AlertAggregatorExceptions();

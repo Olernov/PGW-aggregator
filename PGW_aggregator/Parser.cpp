@@ -32,8 +32,8 @@ Parser::Parser(const std::string &filesDirectory, const std::string &extension, 
 void Parser::ProcessCdrFiles()
 {
 	filesystem::path cdrPath(cdrFilesDirectory);
-
     bool parserSuspend = false;
+    bool lastChargingForbidden = false;
     try {
         while(!IsShutdownFlagSet()) {
             filesystem::directory_iterator endIterator;
@@ -43,14 +43,26 @@ void Parser::ProcessCdrFiles()
                         dirIterator->path().extension() == cdrExtension) {
                     filesFound = true;
                     parserSuspend = false;
-                    if (std::all_of(aggregators.begin(), aggregators.end(), [](Aggregator_ptr& aggr)
-                                                                            { return aggr.get()->GetExceptionMessage().empty(); } )) {
-                        ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
+                    if (!ChargingAllowed()) {
+                        if (!lastChargingForbidden) {
+                            logWriter.Write("Charging forbidden. Processing postponed.", mainThreadIndex, debug);
+                            lastChargingForbidden = true;
+                        }
+                        Sleep();
                     }
                     else {
-                        logWriter.Write("Some aggregators have errors. Processing postponed.", mainThreadIndex, debug);
-                        AlertAggregatorExceptions();
-                        Sleep();
+                        lastChargingForbidden = false;
+                        if (std::all_of(aggregators.begin(), aggregators.end(),
+                                         [](Aggregator_ptr& aggr)
+                                         { return aggr.get()->GetExceptionMessage().empty(); } )
+                            ) {
+                        ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
+                        }
+                        else {
+                            logWriter.Write("Some aggregators have errors. Processing postponed.", mainThreadIndex, debug);
+                            AlertAggregatorExceptions();
+                            Sleep();
+                        }
                     }
                     if (IsShutdownFlagSet()) {
                         break;
@@ -173,6 +185,26 @@ void Parser::Accumulate(CdrFileTotals& totals, const PGWRecord& pGWRecord)
     totals.recordCount++;
 }
 
+
+bool Parser::ChargingAllowed()
+{
+    int attemptCount = 0;
+    long res = 0;
+    while (attemptCount++ < maxAttemptsToWriteToDB) {
+        try {
+            otl_stream dbStream;
+            dbStream.open(1, "call Billing.Mobile_Data_Charger.ChargingAllowed() into :res /*long,out*/", dbConnect);
+            dbStream >> res;
+            dbStream.close();
+            break;
+        }
+        catch(const otl_exception& ex) {
+            logWriter.LogOtlException("**** DB ERROR in main thread while ChargingAllowed: ****", ex, mainThreadIndex);
+            Reconnect(dbConnect, mainThreadIndex);
+        }
+    }
+    return res > 0;
+}
 
 void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals)
 {
