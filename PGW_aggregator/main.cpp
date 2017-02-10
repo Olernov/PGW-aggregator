@@ -51,27 +51,6 @@ void printUsage()
 }
 
 
-//void Reconnect(otl_connect& dbConnect, short sessionIndex)
-//{
-//    try {
-//        dbConnect.logoff();
-//    }
-//    catch(const otl_exception& ex) {
-//        // don't react on possible exception
-//    }
-//    dbConnect.connected = false;
-//    try {
-//        dbConnect.rlogon(config.connectString.c_str());
-//        logWriter.Write("(Re)Connected successfully", sessionIndex);
-//        dbConnect.connected = true;
-//    }
-//    catch(const otl_exception& ex) {
-//        logWriter.Write("**** DB ERROR while logging to DB: **** " + crlf +
-//            Utils::OtlExceptionToText(ex) + ": ****", sessionIndex);
-//    }
-//}
-
-
 int main(int argc, const char* argv[])
 {
     if (argc < 2) {
@@ -105,7 +84,7 @@ int main(int argc, const char* argv[])
     const int OTL_MULTITHREADED_MODE = 1;
     otl_connect::otl_initialize(OTL_MULTITHREADED_MODE);
 
-    time_t testStart;
+    time_t testStart = notInitialized;
     DBConnect dbConnect;
     try {
         if (runTests) {

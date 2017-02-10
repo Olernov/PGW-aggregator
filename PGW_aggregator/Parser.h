@@ -37,6 +37,7 @@ private:
     std::string cdrArchiveDirectory;
     std::string cdrBadDirectory;
     const std::string shutdownFlagFilename = "pgw-aggregator.stop";
+    std::string shutdownFilePath;
     DBConnect dbConnect;
     std::vector<Aggregator_ptr> aggregators;
     ExportRules exportRules;
@@ -52,7 +53,6 @@ private:
     void ProcessFile(const filesystem::path& file, const std::string& cdrArchiveDirectory,
                      const std::string &cdrBadDirectory);
     CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
-    //void AggregateCDRsFromQueue();
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool ChargingAllowed();
     void Accumulate(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);

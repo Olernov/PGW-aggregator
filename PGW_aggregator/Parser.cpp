@@ -17,6 +17,7 @@ Parser::Parser(const std::string &connectString, const std::string &filesDirecto
     cdrBadDirectory(badDirectory),
     exportRules(dbConnect, config.exportRulesRefreshPeriodMin),
     stopFlag(false),
+    shutdownFilePath(filesDirectory + "/" + shutdownFlagFilename),
     printFileContents(false),
     lastAlertTime(notInitialized)
 {
@@ -205,20 +206,24 @@ bool Parser::ChargingAllowed()
 
 void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals)
 {
-    try {
-        otl_stream dbStream;
-        dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
-                      ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/ )", dbConnect);
-        dbStream
-                << filename
-                << static_cast<signed64>(totals.volumeUplink)
-                << static_cast<signed64>(totals.volumeDownlink)
-                << static_cast<long>(totals.recordCount);
-        dbStream.close();
-    }
-    catch(const otl_exception& ex) {
-        logWriter.LogOtlException("**** DB ERROR in main thread while RegisterFileStats: ****", ex, mainThreadIndex);
-        dbConnect.reconnect();
+    int attemptCount = 0;
+    while (attemptCount++ < maxAttemptsToWriteToDB) {
+        try {
+            otl_stream dbStream;
+            dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
+                          ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/ )", dbConnect);
+            dbStream
+                    << filename
+                    << static_cast<signed64>(totals.volumeUplink)
+                    << static_cast<signed64>(totals.volumeDownlink)
+                    << static_cast<long>(totals.recordCount);
+            dbStream.close();
+            break;
+        }
+        catch(const otl_exception& ex) {
+            logWriter.LogOtlException("**** DB ERROR in main thread while RegisterFileStats: ****", ex, mainThreadIndex);
+            dbConnect.reconnect();
+        }
     }
 }
 
@@ -265,8 +270,7 @@ void Parser::SetPrintContents(bool printContents)
 
 bool Parser::IsShutdownFlagSet()
 {
-    std::string path = cdrFilesDirectory + "/" + shutdownFlagFilename;
-    if (filesystem::exists(path)) {
+    if (filesystem::exists(shutdownFilePath)) {
         return true;
     }
     else {
@@ -292,7 +296,7 @@ void Parser::Sleep()
 Parser::~Parser()
 {
     SetStopFlag();
-    filesystem::remove(shutdownFlagFilename);
+    filesystem::remove(shutdownFilePath);
 }
 
 
