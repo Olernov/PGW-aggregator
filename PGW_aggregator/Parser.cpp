@@ -6,27 +6,27 @@
 #include "Config.h"
 
 
-
 extern Config config;
 extern LogWriter logWriter;
-extern void Reconnect(otl_connect& dbConnect, short sessionIndex);
 
-Parser::Parser(const std::string &filesDirectory, const std::string &extension, const std::string &archDirectory, 
-               const std::string &badDirectory, otl_connect& connect) :
+Parser::Parser(const std::string &connectString, const std::string &filesDirectory, const std::string &extension,
+               const std::string &archDirectory, const std::string &badDirectory) :
     cdrFilesDirectory(filesDirectory),
     cdrExtension(extension),
     cdrArchiveDirectory(archDirectory),
     cdrBadDirectory(badDirectory),
-    dbConnect(connect),
+    exportRules(dbConnect, config.exportRulesRefreshPeriodMin),
     stopFlag(false),
     printFileContents(false),
     lastAlertTime(notInitialized)
 {
+    dbConnect.logon(connectString.c_str());
     aggregators.reserve(config.threadCount);
     for (int i =0; i < config.threadCount; i++) {
-        aggregators.push_back(Aggregator_ptr(new Aggregator(i)));
+        aggregators.push_back(Aggregator_ptr(new Aggregator(i, connectString, exportRules)));
     }
 }
+
 
 
 void Parser::ProcessCdrFiles()
@@ -36,6 +36,7 @@ void Parser::ProcessCdrFiles()
     bool lastChargingForbidden = false;
     try {
         while(!IsShutdownFlagSet()) {
+            exportRules.RefreshIfNeeded();
             filesystem::directory_iterator endIterator;
             bool filesFound = false;
             for(filesystem::directory_iterator dirIterator(cdrPath); dirIterator != endIterator; dirIterator++) {
@@ -43,6 +44,7 @@ void Parser::ProcessCdrFiles()
                         dirIterator->path().extension() == cdrExtension) {
                     filesFound = true;
                     parserSuspend = false;
+                    exportRules.RefreshIfNeeded();
                     if (!ChargingAllowed()) {
                         if (!lastChargingForbidden) {
                             logWriter.Write("Charging forbidden. Processing postponed.", mainThreadIndex, debug);
@@ -54,9 +56,8 @@ void Parser::ProcessCdrFiles()
                         lastChargingForbidden = false;
                         if (std::all_of(aggregators.begin(), aggregators.end(),
                                          [](Aggregator_ptr& aggr)
-                                         { return aggr.get()->GetExceptionMessage().empty(); } )
-                            ) {
-                        ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
+                                         { return aggr.get()->GetExceptionMessage().empty(); } )) {
+                            ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
                         }
                         else {
                             logWriter.Write("Some aggregators have errors. Processing postponed.", mainThreadIndex, debug);
@@ -188,44 +189,36 @@ void Parser::Accumulate(CdrFileTotals& totals, const PGWRecord& pGWRecord)
 
 bool Parser::ChargingAllowed()
 {
-    int attemptCount = 0;
     long res = 0;
-    while (attemptCount++ < maxAttemptsToWriteToDB) {
-        try {
-            otl_stream dbStream;
-            dbStream.open(1, "call Billing.Mobile_Data_Charger.ChargingAllowed() into :res /*long,out*/", dbConnect);
-            dbStream >> res;
-            dbStream.close();
-            break;
-        }
-        catch(const otl_exception& ex) {
-            logWriter.LogOtlException("**** DB ERROR in main thread while ChargingAllowed: ****", ex, mainThreadIndex);
-            Reconnect(dbConnect, mainThreadIndex);
-        }
+    try {
+        otl_stream stream;
+        stream.open(1, "call Billing.Mobile_Data_Charger.ChargingAllowed() into :res /*long,out*/", dbConnect);
+        stream >> res;
     }
+    catch(const otl_exception& ex) {
+        logWriter.LogOtlException("**** DB ERROR in main thread while ChargingAllowed: ****", ex, mainThreadIndex);
+        dbConnect.reconnect();
+    }
+
     return res > 0;
 }
 
 void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals)
 {
-    int attemptCount = 0;
-    while (attemptCount++ < maxAttemptsToWriteToDB) {
-        try {
-            otl_stream dbStream;
-            dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
-                          ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/ )", dbConnect);
-            dbStream
-                    << filename
-                    << static_cast<signed64>(totals.volumeUplink)
-                    << static_cast<signed64>(totals.volumeDownlink)
-                    << static_cast<long>(totals.recordCount);
-            dbStream.close();
-            break;
-        }
-        catch(const otl_exception& ex) {
-            logWriter.LogOtlException("**** DB ERROR in main thread while RegisterFileStats: ****", ex, mainThreadIndex);
-            Reconnect(dbConnect, mainThreadIndex);
-        }
+    try {
+        otl_stream dbStream;
+        dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
+                      ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/ )", dbConnect);
+        dbStream
+                << filename
+                << static_cast<signed64>(totals.volumeUplink)
+                << static_cast<signed64>(totals.volumeDownlink)
+                << static_cast<long>(totals.recordCount);
+        dbStream.close();
+    }
+    catch(const otl_exception& ex) {
+        logWriter.LogOtlException("**** DB ERROR in main thread while RegisterFileStats: ****", ex, mainThreadIndex);
+        dbConnect.reconnect();
     }
 }
 
@@ -246,24 +239,20 @@ void Parser::AlertAggregatorExceptions()
 
     if (!alertMessage.empty()) {
         if (Utils::DiffMinutes(time(nullptr), lastAlertTime) >= config.alertRepeatPeriodMin) {
-            int attemptCount = 0;
-            while (attemptCount++ < maxAttemptsToWriteToDB) {
-                try {
-                    otl_stream dbStream;
-                    dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
-                                   std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
-                    dbStream << alertMessage;
-                    dbStream.close();
-                    break;
-                }
-                catch(const otl_exception& ex) {
-                    logWriter.LogOtlException("**** DB ERROR in main thread while AlertAggregatorExceptions: ****",
-                                              ex, mainThreadIndex);
-                    Reconnect(dbConnect, mainThreadIndex);
-                }
+            try {
+                otl_stream dbStream;
+                dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
+                               std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
+                dbStream << alertMessage;
+                dbStream.close();
+                lastAlertMessage = alertMessage;
+                lastAlertTime = time(nullptr);
             }
-            lastAlertMessage = alertMessage;
-            lastAlertTime = time(nullptr);
+            catch(const otl_exception& ex) {
+                logWriter.LogOtlException("**** DB ERROR in main thread while AlertAggregatorExceptions: ****",
+                                          ex, mainThreadIndex);
+                dbConnect.reconnect();
+            }
         }
     }
 }
@@ -276,7 +265,8 @@ void Parser::SetPrintContents(bool printContents)
 
 bool Parser::IsShutdownFlagSet()
 {
-    if (filesystem::exists(shutdownFlagFilename)) {
+    std::string path = cdrFilesDirectory + "/" + shutdownFlagFilename;
+    if (filesystem::exists(path)) {
         return true;
     }
     else {

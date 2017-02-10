@@ -4,6 +4,7 @@
 #include <memory>
 #include "Common.h"
 #include "OTL_Header.h"
+#include "DBConnect.h"
 
 enum SessionStatus
 {
@@ -35,7 +36,7 @@ public:
     time_t lastUpdateTime;
     time_t lastExportTime;
 
-    void ExportToDB(otl_connect& dbConnect);
+    void ExportToDB(DBConnect& dbConnect);
     std::string SessionDataDump();
     void UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownlinkIncrease,
                     unsigned32 durationIncrease, time_t newcdrTime);

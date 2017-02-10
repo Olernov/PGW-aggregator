@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
-
+//#include <functional>
+#include "OTL_Header.h"
 
 
 typedef unsigned long unsigned32;
@@ -45,4 +46,4 @@ struct DataVolumes {
 
 typedef std::map<unsigned long, DataVolumes> DataVolumesMap;
 
-
+//typedef std::function<void(otl_connect&, short)> reconnectFuncType;

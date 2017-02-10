@@ -9,6 +9,7 @@
 #include "GPRSRecord.h"
 #include "PGWRecord.h"
 #include "Session.h"
+#include "ExportRules.h"
 
 typedef std::multimap<unsigned32, Session_ptr> SessionMap;
 
@@ -16,7 +17,7 @@ typedef std::multimap<unsigned32, Session_ptr> SessionMap;
 class Aggregator
 {
 public:
-    Aggregator(int index);
+    Aggregator(int index, const std::string &connectString, ExportRules& er);
     ~Aggregator();
     void AddCdrToQueue(const GPRSRecord* gprsRecord);
     void AggregatorThreadFunc();
@@ -32,9 +33,11 @@ private:
     SessionMap sessions;
     std::thread thread;
     bool stopFlag;
-    otl_connect dbConnect;
+    std::string connectString;
+    DBConnect dbConnect;
     std::string exceptionText;
-    std::atomic<bool> refreshInProgress;
+    ExportRules& exportRules;
+
 
     time_t lastIdleSessionsEject;
     std::mutex setExceptionMutex;

@@ -46,9 +46,9 @@ struct RatingGroupSetting
 class ExportRules
 {
 public:
-    ExportRules();
+    ExportRules(DBConnect& conn, unsigned long refreshPeriodMin);
     bool IsReadyForExport(Session_ptr sessionPtr);
-    void ReadSettingsFromDatabase(otl_connect& connect);
+    void RefreshIfNeeded();
 private:
     static const unsigned32 defaultMegabytesHome = 10;
     static const unsigned32 defaultMegabytesRoaming = 0;
@@ -56,9 +56,9 @@ private:
     static const unsigned32 defaultMinuteRoaming = 60;
     std::map<unsigned32, RatingGroupSetting> ratingGroups;
 
-    std::atomic<bool> refreshInProgress;
-
+    bool refreshInProgress;
+    unsigned long refreshPeriodMin;
     time_t lastRefresh;
-    otl_connect* dbConnect;
+    DBConnect& dbConnect;
 };
 

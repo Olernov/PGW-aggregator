@@ -41,6 +41,5 @@ private:
     const std::string logLevelParamName = "LOG_LEVEL";
     const int minThreadCount = 1;
     const int maxThreadCount = 32;
-    //void SetDefaults();
     unsigned long ParseULongValue(const std::string& name, const std::string& value);
 };

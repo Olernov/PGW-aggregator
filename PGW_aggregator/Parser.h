@@ -3,7 +3,7 @@
 #include <thread>
 #include <boost/filesystem.hpp>
 #include "Aggregator.h"
-//#include "LockFreeQueueWithSize.h"
+#include "ExportRules.h"
 #include "Common.h"
 
 using namespace boost;
@@ -25,21 +25,22 @@ class parse_error : public std::logic_error {};
 class Parser
 {
 public:
-    Parser(const std::string &cdrFilesDirectory, const std::string &cdrExtension,
-           const std::string &archiveDirectory, const std::string &cdrBadDirectory, otl_connect &connect);
+    Parser(const std::string &connectString, const std::string &cdrFilesDirectory, const std::string &cdrExtension,
+           const std::string &archiveDirectory, const std::string &cdrBadDirectory);
     ~Parser();
     void ProcessCdrFiles();
     void SetStopFlag();
 	void SetPrintContents(bool);
 private:
-
     std::string cdrFilesDirectory; 
     std::string cdrExtension;
     std::string cdrArchiveDirectory;
     std::string cdrBadDirectory;
-    const char* shutdownFlagFilename = "pgw-aggregator.stop";
-    otl_connect& dbConnect;
+    const std::string shutdownFlagFilename = "pgw-aggregator.stop";
+    DBConnect dbConnect;
     std::vector<Aggregator_ptr> aggregators;
+    ExportRules exportRules;
+
     bool printFileContents;
     bool stopFlag;
     std::string lastExceptionText;

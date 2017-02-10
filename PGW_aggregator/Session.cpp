@@ -49,7 +49,7 @@ void Session::UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownl
 }
 
 
-void Session::ExportToDB(otl_connect& dbConnect)
+void Session::ExportToDB(DBConnect& dbConnect)
 {
     if (HaveDataToExport()) {
         otl_stream dbStream;

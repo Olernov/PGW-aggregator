@@ -1,21 +1,22 @@
 #include <iostream>
 #include "Aggregator.h"
 #include "Utils.h"
-#include "ExportRules.h"
 #include "Common.h"
 #include "LogWriter.h"
 #include "Config.h"
 
-extern ExportRules exportRules;
+
 extern LogWriter logWriter;
-extern void Reconnect(otl_connect& dbConnect, short sessionIndex);
+//extern void Reconnect(otl_connect& dbConnect, short sessionIndex);
 
 std::mutex mutex;
 
 extern Config config;
 
-Aggregator::Aggregator(int index) :
+Aggregator::Aggregator(int index, const std::string& connectString, ExportRules &er) :
     thisIndex(index),
+    connectString(connectString),
+    exportRules(er),
     cdrQueue(cdrQueueSize),
     stopFlag(false)
 {
@@ -40,7 +41,13 @@ void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 
 void Aggregator::AggregatorThreadFunc()
 {
-    Reconnect(dbConnect, thisIndex);
+    try {
+        dbConnect.logon(connectString.c_str());
+    }
+    catch(const otl_exception& ex) {
+        logWriter.Write("**** DB ERROR while logging to DB: **** " + crlf +
+            Utils::OtlExceptionToText(ex) + ": ****", thisIndex);
+    }
     bool cdrFound = false;
     while (!(stopFlag && cdrQueue.empty())) {
         GPRSRecord* gprsRecord;
@@ -74,29 +81,6 @@ void Aggregator::AggregatorThreadFunc()
         dbConnect.logoff();
     }
 }
-
-
-//void Aggregator::ReconnectToDB()
-//{
-//    try {
-//        dbConnect.logoff();
-//    }
-//    catch(const otl_exception& ex) {
-//        // no reaction for possible exception
-//    }
-
-//    try {
-//        dbConnect.rlogon(config.connectString.c_str());
-//        //ClearExceptionPtr();
-//        logWriter.Write("(Re)Connected successfully", sessionIndex);
-//    }
-//    catch(const otl_exception& ex) {
-//        //LogOtlException(ex);
-//        logWriter.LogOtlException("**** DB ERROR while connecting to DB: ****", ex, sessionIndex);
-//        dbConnect.connected = false;
-//        SetExceptionPtr();
-//    }
-//}
 
 
 void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
@@ -165,21 +149,16 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 
 void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
-    if (!dbConnect.connected) {
-        Reconnect(dbConnect, thisIndex);
+    try {
+        sessionPtr.get()->ExportToDB(dbConnect);
+        ClearExceptionText();
     }
-    if (dbConnect.connected) {
-        try {
-            sessionPtr.get()->ExportToDB(dbConnect);
-            ClearExceptionText();
-        }
-        catch(const otl_exception& ex) {
-            SetExceptionText(Utils::OtlExceptionToText(ex));
-            logWriter.Write("**** DB ERROR while exporting chargingID " +
-                std::to_string(sessionPtr.get()->chargingID) + ": ****" + crlf + exceptionText, thisIndex);
-            logWriter.Write(sessionPtr.get()->SessionDataDump(), thisIndex);
-            Reconnect(dbConnect, thisIndex);
-        }
+    catch(const otl_exception& ex) {
+        SetExceptionText(Utils::OtlExceptionToText(ex));
+        logWriter.Write("**** DB ERROR while exporting chargingID " +
+            std::to_string(sessionPtr.get()->chargingID) + ": ****" + crlf + exceptionText, thisIndex);
+        logWriter.Write(sessionPtr.get()->SessionDataDump(), thisIndex);
+        dbConnect.reconnect();
     }
 }
 
