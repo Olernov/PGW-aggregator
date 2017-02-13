@@ -48,7 +48,7 @@ void Parser::ProcessCdrFiles()
                     exportRules.RefreshIfNeeded();
                     if (!ChargingAllowed()) {
                         if (!lastChargingForbidden) {
-                            logWriter.Write("Charging forbidden. Processing postponed.", mainThreadIndex, debug);
+                            logWriter.Write("Charging forbidden. Processing postponed.", mainThreadIndex);
                             lastChargingForbidden = true;
                         }
                         Sleep();
@@ -61,7 +61,7 @@ void Parser::ProcessCdrFiles()
                             ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
                         }
                         else {
-                            logWriter.Write("Some aggregators have errors. Processing postponed.", mainThreadIndex, debug);
+                            logWriter.Write("Some aggregators have errors. Processing postponed.", mainThreadIndex);
                             AlertAggregatorExceptions();
                             Sleep();
                         }

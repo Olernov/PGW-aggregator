@@ -76,6 +76,12 @@ int main(int argc, const char* argv[])
         std::cerr << ex.what() <<std::endl;
         exit(EXIT_FAILURE);
     }
+    const std::string pidFilename = "/var/run/pgw-aggregator.pid";
+    std::ofstream pidFile(pidFilename, std::ofstream::out);
+    if (pidFile.is_open()) {
+        pidFile << getpid();
+    }
+    pidFile.close();
 
     logWriter.Initialize(config.logDir, config.logLevel);
     logWriter << "PGW aggregator start";
@@ -110,9 +116,11 @@ int main(int argc, const char* argv[])
         }
 
         // Common part both for tests and production
-        Parser parser(config.connectString, config.inputDir, config.cdrExtension,
+        {
+            Parser parser(config.connectString, config.inputDir, config.cdrExtension,
                       config.archiveDir, config.badDir);
-        parser.ProcessCdrFiles();
+            parser.ProcessCdrFiles();
+        }
 
         if (runTests) {
             std::cout << "Test consumed " << Utils::DiffMinutes(time(nullptr), testStart) << " minutes" << std::endl;
@@ -128,5 +136,6 @@ int main(int argc, const char* argv[])
         std::cerr << Utils::OtlExceptionToText(ex) << std::endl;
 	}
     logWriter << "PGW aggregator shutdown";
+    filesystem::remove(pidFilename);
     return 0;
 }
