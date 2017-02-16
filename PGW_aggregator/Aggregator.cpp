@@ -69,8 +69,8 @@ void Aggregator::AggregatorThreadFunc()
                 EjectIdleSessions();
             }
             else {
-                // nothing to do
-                std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
+                std::unique_lock<std::mutex> lock(mutex);
+                conditionVar.wait_for(lock, std::chrono::seconds(secondsToSleepWhenNothingToDo));
             }
         }
     }
@@ -222,6 +222,12 @@ std::string Aggregator::GetExceptionMessage() const
         return "Not connected to DB";
     }
     return "";
+}
+
+
+void Aggregator::WakeUp()
+{
+    conditionVar.notify_one();
 }
 
 

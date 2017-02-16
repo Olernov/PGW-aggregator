@@ -52,12 +52,8 @@ private:
     bool stopFlag;
     std::string lastExceptionText;
     std::string postponeReason;
-
-
     std::string lastAlertMessage;
     time_t lastAlertTime;
-
-
     CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool ChargingAllowed();

@@ -3,6 +3,7 @@
 #include <memory>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <boost/lockfree/queue.hpp>
 #include "Common.h"
 #include "OTL_Header.h"
@@ -25,12 +26,15 @@ public:
     std::string GetExceptionMessage() const;
     void CheckExportedData(AggregationTestType);
     void SetStopFlag();
-    int thisIndex;
+    void WakeUp();
 private:
     static const int cdrQueueSize = 500;
     static const size_t maxAlertMessageLen = 2000;
 
+    int thisIndex;
     boost::lockfree::queue<GPRSRecord*, boost::lockfree::fixed_sized<true>> cdrQueue;
+    std::mutex mutex;
+    std::condition_variable conditionVar;
     SessionMap sessions;
     std::thread thread;
     bool stopFlag;

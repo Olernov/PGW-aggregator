@@ -98,7 +98,7 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
         rval = ber_decode(0, &asn_DEF_GPRSRecord, (void**) &gprsRecord, buffer.get() + nextChunk, maxPGWRecordSize);
         if(rval.code != RC_OK) {
             if (fileContents) {
-                fclose(fileContents);
+                fclose(fileContents);f
             }
             throw std::invalid_argument("Error while decoding ASN file. Error code " + std::to_string(rval.code));
         }
@@ -110,6 +110,7 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
                 gprsRecord->choice.pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
             auto& aggr = GetAppropiateAggregator(gprsRecord);
             aggr.AddCdrToQueue(gprsRecord);
+            aggr.WakeUp();
             AccumulateStats(totals, gprsRecord->choice.pGWRecord);
         }
         recordCount++;
