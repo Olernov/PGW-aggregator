@@ -48,7 +48,6 @@ private:
     void ExportAllSessionsToDB();
     void EjectIdleSessions();
     void SendAlertIfNeeded(const std::string&);
-    void ClearExceptionText();
 };
 
 typedef std::shared_ptr<Aggregator> Aggregator_ptr;

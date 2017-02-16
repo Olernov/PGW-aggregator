@@ -110,7 +110,7 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
                 gprsRecord->choice.pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
             auto& aggr = GetAppropiateAggregator(gprsRecord);
             aggr.AddCdrToQueue(gprsRecord);
-            Accumulate(totals, gprsRecord->choice.pGWRecord);
+            AccumulateStats(totals, gprsRecord->choice.pGWRecord);
         }
         recordCount++;
     }
@@ -128,13 +128,20 @@ Aggregator& Parser::GetAppropiateAggregator(const GPRSRecord* gprsRecord)
 }
 
 
-void Parser::Accumulate(CdrFileTotals& totals, const PGWRecord& pGWRecord)
+void Parser::AccumulateStats(CdrFileTotals& totals, const PGWRecord& pGWRecord)
 {
     for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
         totals.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
         totals.volumeDownlink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
     }
     totals.recordCount++;
+    time_t cdrTime = Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime);
+    if (totals.earliestTime == notInitialized || cdrTime < totals.earliestTime) {
+        totals.earliestTime = cdrTime;
+    }
+    if (totals.latestTime == notInitialized || cdrTime > totals.latestTime) {
+        totals.latestTime = cdrTime;
+    }
 }
 
 
@@ -167,12 +174,15 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
         try {
             otl_stream dbStream;
             dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
-                          ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/ )", dbConnect);
+                          ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/, "
+                          ":earliest_time<timestamp>, :latest_time<timestamp> )", dbConnect);
             dbStream
                     << filename
                     << static_cast<signed64>(totals.volumeUplink)
                     << static_cast<signed64>(totals.volumeDownlink)
-                    << static_cast<long>(totals.recordCount);
+                    << static_cast<long>(totals.recordCount)
+                    << Utils::Time_t_to_OTL_datetime(totals.earliestTime)
+                    << Utils::Time_t_to_OTL_datetime(totals.latestTime) ;
             dbStream.close();
             break;
         }
@@ -182,41 +192,6 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
         }
     }
 }
-
-//void Parser::AlertAggregatorExceptions()
-//{
-//    std::string alertMessage;
-//    for (auto& aggr : aggregators) {
-//        std::string errorMessage = aggr.get()->GetExceptionMessage();
-//        if (!errorMessage.empty()) {
-//            alertMessage += "Error in aggregating thread #" + std::to_string(aggr.get()->thisIndex) + ": " +
-//                    errorMessage + crlf;
-//        }
-//        if (alertMessage.length() >= maxAlertMessageLen) {
-//            alertMessage.erase(maxAlertMessageLen-1);
-//            break;
-//        }
-//    }
-
-//    if (!alertMessage.empty()) {
-//        if (Utils::DiffMinutes(time(nullptr), lastAlertTime) >= config.alertRepeatPeriodMin) {
-//            try {
-//                otl_stream dbStream;
-//                dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
-//                               std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
-//                dbStream << alertMessage;
-//                dbStream.close();
-//                lastAlertMessage = alertMessage;
-//                lastAlertTime = time(nullptr);
-//            }
-//            catch(const otl_exception& ex) {
-//                logWriter.LogOtlException("**** DB ERROR in main thread while AlertAggregatorExceptions: ****",
-//                                          ex, mainThreadIndex);
-//                dbConnect.reconnect();
-//            }
-//        }
-//    }
-//}
 
 void Parser::SetPrintContents(bool printContents)
 {

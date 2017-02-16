@@ -40,10 +40,6 @@ void MainLoopController::Run()
                             lastPostponeReason = parser.GetPostponeReason();
                             logWriter.Write("CDR processing postponed due to: " + lastPostponeReason, mainThreadIndex);
                         }
-
-                        //TODO: check it
-                        //parser.AlertAggregatorExceptions();
-
                         Sleep();
                     }
                     if (IsShutdownFlagSet()) {

@@ -152,7 +152,7 @@ void Aggregator::ExportSession(Session_ptr sessionPtr)
 {
     try {
         sessionPtr.get()->ExportToDB(dbConnect);
-        ClearExceptionText();
+        exceptionText.clear();
     }
     catch(const otl_exception& ex) {
         exceptionText = Utils::OtlExceptionToText(ex);
@@ -210,12 +210,6 @@ void Aggregator::SendAlertIfNeeded(const std::string& excText)
         catch(const otl_exception& ex) {
         }
     }
-}
-
-
-void Aggregator::ClearExceptionText()
-{
-    exceptionText.clear();
 }
 
 

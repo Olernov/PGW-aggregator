@@ -13,11 +13,15 @@ struct CdrFileTotals
     CdrFileTotals() :
         volumeUplink(0),
         volumeDownlink(0),
-        recordCount(0)
+        recordCount(0),
+        earliestTime(notInitialized),
+        latestTime(notInitialized)
     {}
     unsigned64 volumeUplink;
     unsigned64 volumeDownlink;
     unsigned32 recordCount;
+    time_t earliestTime;
+    time_t latestTime;
 };
 
 class parse_error : public std::logic_error {};
@@ -57,7 +61,7 @@ private:
     CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool ChargingAllowed();
-    void Accumulate(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);
+    void AccumulateStats(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);
     void RegisterFileStats(const std::string& filename, CdrFileTotals totals);
     void AlertAggregatorExceptions();
 };
