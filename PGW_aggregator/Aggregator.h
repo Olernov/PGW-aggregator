@@ -28,6 +28,7 @@ public:
     int thisIndex;
 private:
     static const int cdrQueueSize = 500;
+    static const size_t maxAlertMessageLen = 2000;
 
     boost::lockfree::queue<GPRSRecord*, boost::lockfree::fixed_sized<true>> cdrQueue;
     SessionMap sessions;
@@ -36,20 +37,17 @@ private:
     std::string connectString;
     DBConnect dbConnect;
     std::string exceptionText;
+    std::string lastExceptionText;
     ExportRules& exportRules;
-
-
     time_t lastIdleSessionsEject;
-    std::mutex setExceptionMutex;
 
-    //void ReconnectToDB();
     void CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
     SessionMap::iterator CreateSession(const PGWRecord& pGWRecord,
                        unsigned32 ratingGroup, unsigned32 volumeUplink, unsigned32 volumeDownlink);
     void ExportSession(Session_ptr sessionPtr);
     void ExportAllSessionsToDB();
     void EjectIdleSessions();
-    void SetExceptionText(const std::string&);
+    void SendAlertIfNeeded(const std::string&);
     void ClearExceptionText();
 };
 

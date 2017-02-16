@@ -7,7 +7,7 @@
 #include "Session.h"
 #include "Common.h"
 #include "Aggregator.h"
-#include "Parser.h"
+#include "MainLoopController.h"
 #include "ExportRules.h"
 #include "LogWriter.h"
 #include "Config.h"
@@ -95,7 +95,7 @@ int main(int argc, const char* argv[])
     try {
         if (runTests) {
             Utils::RunAllTests();
-            dbConnect.logon(config.connectString.c_str());
+            dbConnect.rlogon(config.connectString.c_str());
             RunStoredLogicTests(dbConnect);
             std::cout << "Further sample CDR test requires deletion from Mobile_Session table. Proceed (y/n)?"
                     << std::endl << "> ";
@@ -117,9 +117,9 @@ int main(int argc, const char* argv[])
 
         // Common part both for tests and production
         {
-            Parser parser(config.connectString, config.inputDir, config.cdrExtension,
+            MainLoopController mlc(config.connectString, config.inputDir, config.cdrExtension,
                       config.archiveDir, config.badDir);
-            parser.ProcessCdrFiles();
+            mlc.Run();
         }
 
         if (runTests) {

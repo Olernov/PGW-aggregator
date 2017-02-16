@@ -9,10 +9,9 @@
 extern Config config;
 extern LogWriter logWriter;
 
+
 Parser::Parser(const std::string &connectString, const std::string &filesDirectory, const std::string &extension,
                const std::string &archDirectory, const std::string &badDirectory) :
-    cdrFilesDirectory(filesDirectory),
-    cdrExtension(extension),
     cdrArchiveDirectory(archDirectory),
     cdrBadDirectory(badDirectory),
     exportRules(dbConnect, config.exportRulesRefreshPeriodMin),
@@ -21,76 +20,27 @@ Parser::Parser(const std::string &connectString, const std::string &filesDirecto
     printFileContents(false),
     lastAlertTime(notInitialized)
 {
-    dbConnect.logon(connectString.c_str());
+    dbConnect.rlogon(connectString.c_str());
     aggregators.reserve(config.threadCount);
     for (int i =0; i < config.threadCount; i++) {
         aggregators.push_back(Aggregator_ptr(new Aggregator(i, connectString, exportRules)));
     }
 }
 
-
-
-void Parser::ProcessCdrFiles()
+bool Parser::IsReady()
 {
-	filesystem::path cdrPath(cdrFilesDirectory);
-    bool parserSuspend = false;
-    bool lastChargingForbidden = false;
-    try {
-        while(!IsShutdownFlagSet()) {
-            exportRules.RefreshIfNeeded();
-            filesystem::directory_iterator endIterator;
-            bool filesFound = false;
-            for(filesystem::directory_iterator dirIterator(cdrPath); dirIterator != endIterator; dirIterator++) {
-                if (filesystem::is_regular_file(dirIterator->status()) &&
-                        dirIterator->path().extension() == cdrExtension) {
-                    filesFound = true;
-                    parserSuspend = false;
-                    exportRules.RefreshIfNeeded();
-                    if (!ChargingAllowed()) {
-                        if (!lastChargingForbidden) {
-                            logWriter.Write("Charging forbidden. Processing postponed.", mainThreadIndex);
-                            lastChargingForbidden = true;
-                        }
-                        Sleep();
-                    }
-                    else {
-                        lastChargingForbidden = false;
-                        if (std::all_of(aggregators.begin(), aggregators.end(),
-                                         [](Aggregator_ptr& aggr)
-                                         { return aggr.get()->GetExceptionMessage().empty(); } )) {
-                            ProcessFile(dirIterator->path(), cdrArchiveDirectory, cdrBadDirectory);
-                        }
-                        else {
-                            logWriter.Write("Some aggregators have errors. Processing postponed.", mainThreadIndex);
-                            AlertAggregatorExceptions();
-                            Sleep();
-                        }
-                    }
-                    if (IsShutdownFlagSet()) {
-                        break;
-                    }
-                }
-            }
-            if (!filesFound) {
-                if (!parserSuspend) {
-                    parserSuspend = true;
-                    logWriter << "All CDR files processed.";
-                }
-                Sleep();
-            }
-        }
+    postponeReason.clear();
+    if (std::any_of(aggregators.begin(), aggregators.end(),
+                     [](Aggregator_ptr& aggr) { return !aggr.get()->GetExceptionMessage().empty(); } )) {
+        postponeReason = "Aggregator exceptions";
     }
-    catch(const std::exception& ex) {
-            logWriter.Write("Parser ERROR: ", mainThreadIndex, error);
-            logWriter.Write(ex.what(), mainThreadIndex, error);
-            lastExceptionText = ex.what();
+    else if (!ChargingAllowed()) {
+        postponeReason = "Charging forbidden";
     }
-    logWriter << "Shutting down ...";
+    return postponeReason.empty();
 }
 
-
-void Parser::ProcessFile(const filesystem::path& file, const std::string& cdrArchiveDirectory,
-                         const std::string& cdrBadDirectory)
+void Parser::ProcessFile(const filesystem::path& file)
 {
     FILE *pgwFile = fopen(file.string().c_str(), "rb");
     if(!pgwFile) {
@@ -188,6 +138,12 @@ void Parser::Accumulate(CdrFileTotals& totals, const PGWRecord& pGWRecord)
 }
 
 
+void Parser::RefreshExportRulesIfNeeded()
+{
+    exportRules.RefreshIfNeeded();
+}
+
+
 bool Parser::ChargingAllowed()
 {
     long res = 0;
@@ -227,55 +183,44 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
     }
 }
 
-void Parser::AlertAggregatorExceptions()
-{
-    std::string alertMessage;
-    for (auto& aggr : aggregators) {
-        std::string errorMessage = aggr.get()->GetExceptionMessage();
-        if (!errorMessage.empty()) {
-            alertMessage += "Error in aggregating thread #" + std::to_string(aggr.get()->thisIndex) + ": " +
-                    errorMessage + crlf;
-        }
-        if (alertMessage.length() >= maxAlertMessageLen) {
-            alertMessage.erase(maxAlertMessageLen-1);
-            break;
-        }
-    }
+//void Parser::AlertAggregatorExceptions()
+//{
+//    std::string alertMessage;
+//    for (auto& aggr : aggregators) {
+//        std::string errorMessage = aggr.get()->GetExceptionMessage();
+//        if (!errorMessage.empty()) {
+//            alertMessage += "Error in aggregating thread #" + std::to_string(aggr.get()->thisIndex) + ": " +
+//                    errorMessage + crlf;
+//        }
+//        if (alertMessage.length() >= maxAlertMessageLen) {
+//            alertMessage.erase(maxAlertMessageLen-1);
+//            break;
+//        }
+//    }
 
-    if (!alertMessage.empty()) {
-        if (Utils::DiffMinutes(time(nullptr), lastAlertTime) >= config.alertRepeatPeriodMin) {
-            try {
-                otl_stream dbStream;
-                dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
-                               std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
-                dbStream << alertMessage;
-                dbStream.close();
-                lastAlertMessage = alertMessage;
-                lastAlertTime = time(nullptr);
-            }
-            catch(const otl_exception& ex) {
-                logWriter.LogOtlException("**** DB ERROR in main thread while AlertAggregatorExceptions: ****",
-                                          ex, mainThreadIndex);
-                dbConnect.reconnect();
-            }
-        }
-    }
-}
+//    if (!alertMessage.empty()) {
+//        if (Utils::DiffMinutes(time(nullptr), lastAlertTime) >= config.alertRepeatPeriodMin) {
+//            try {
+//                otl_stream dbStream;
+//                dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
+//                               std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
+//                dbStream << alertMessage;
+//                dbStream.close();
+//                lastAlertMessage = alertMessage;
+//                lastAlertTime = time(nullptr);
+//            }
+//            catch(const otl_exception& ex) {
+//                logWriter.LogOtlException("**** DB ERROR in main thread while AlertAggregatorExceptions: ****",
+//                                          ex, mainThreadIndex);
+//                dbConnect.reconnect();
+//            }
+//        }
+//    }
+//}
 
 void Parser::SetPrintContents(bool printContents)
 {
     printFileContents = printContents;
-}
-
-
-bool Parser::IsShutdownFlagSet()
-{
-    if (filesystem::exists(shutdownFilePath)) {
-        return true;
-    }
-    else {
-        return false;
-    }
 }
 
 
@@ -287,16 +232,5 @@ void Parser::SetStopFlag()
     }
 }
 
-
-void Parser::Sleep()
-{
-    std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
-}
-
-Parser::~Parser()
-{
-    SetStopFlag();
-    filesystem::remove(shutdownFilePath);
-}
 
 

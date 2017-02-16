@@ -42,11 +42,12 @@ void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
 void Aggregator::AggregatorThreadFunc()
 {
     try {
-        dbConnect.logon(connectString.c_str());
+        dbConnect.rlogon(connectString.c_str());
     }
     catch(const otl_exception& ex) {
-        logWriter.Write("**** DB ERROR while logging to DB: **** " + crlf +
-            Utils::OtlExceptionToText(ex) + ": ****", thisIndex);
+        SendAlertIfNeeded(Utils::OtlExceptionToText(ex));
+        logWriter.Write("**** DB ERROR while logging to DB: **** " +
+            crlf + exceptionText, thisIndex);
     }
     bool cdrFound = false;
     while (!(stopFlag && cdrQueue.empty())) {
@@ -154,11 +155,12 @@ void Aggregator::ExportSession(Session_ptr sessionPtr)
         ClearExceptionText();
     }
     catch(const otl_exception& ex) {
-        SetExceptionText(Utils::OtlExceptionToText(ex));
+        exceptionText = Utils::OtlExceptionToText(ex);
         logWriter.Write("**** DB ERROR while exporting chargingID " +
             std::to_string(sessionPtr.get()->chargingID) + ": ****" + crlf + exceptionText, thisIndex);
         logWriter.Write(sessionPtr.get()->SessionDataDump(), thisIndex);
         dbConnect.reconnect();
+        SendAlertIfNeeded(exceptionText);
     }
 }
 
@@ -194,16 +196,25 @@ void Aggregator::EjectIdleSessions()
 }
 
 
-void Aggregator::SetExceptionText(const std::string& excText)
+void Aggregator::SendAlertIfNeeded(const std::string& excText)
 {
-    std::lock_guard<std::mutex> lock(setExceptionMutex);
-    exceptionText = excText;
+    if (exceptionText != lastExceptionText && dbConnect.connected) {
+        otl_stream dbStream;
+        try {
+            dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
+                           std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
+            dbStream << exceptionText.substr(0, maxAlertMessageLen-1);
+            dbStream.close();
+            lastExceptionText = exceptionText;
+        }
+        catch(const otl_exception& ex) {
+        }
+    }
 }
 
 
 void Aggregator::ClearExceptionText()
 {
-    std::lock_guard<std::mutex> lock(setExceptionMutex);
     exceptionText.clear();
 }
 
@@ -213,7 +224,6 @@ std::string Aggregator::GetExceptionMessage() const
     if (!exceptionText.empty()) {
         return exceptionText;
     }
-
     if(!dbConnect.connected) {
         return "Not connected to DB";
     }
