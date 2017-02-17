@@ -98,7 +98,7 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
         rval = ber_decode(0, &asn_DEF_GPRSRecord, (void**) &gprsRecord, buffer.get() + nextChunk, maxPGWRecordSize);
         if(rval.code != RC_OK) {
             if (fileContents) {
-                fclose(fileContents);f
+                fclose(fileContents);
             }
             throw std::invalid_argument("Error while decoding ASN file. Error code " + std::to_string(rval.code));
         }
@@ -193,6 +193,25 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
         }
     }
 }
+
+
+bool Parser::SendMissingCdrAlert(double diffMinutes)
+{
+    otl_stream dbStream;
+    try {
+        dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
+                       std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
+        dbStream << std::string("New CDR files are missing for ") + std::to_string(diffMinutes) + " min.";
+        dbStream.close();
+        return true;
+    }
+    catch(const otl_exception& ex) {
+        logWriter.LogOtlException("**** DB ERROR in main thread while SendMissingCdrAlert: ****", ex, mainThreadIndex);
+        dbConnect.reconnect();
+        return false;
+    }
+}
+
 
 void Parser::SetPrintContents(bool printContents)
 {

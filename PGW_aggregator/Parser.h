@@ -39,6 +39,7 @@ public:
 	void SetPrintContents(bool);
     bool IsReady();
     const std::string& GetPostponeReason() const { return postponeReason; }
+    bool SendMissingCdrAlert(double diffMinutes);
 private:
     std::string cdrArchiveDirectory;
     std::string cdrBadDirectory;

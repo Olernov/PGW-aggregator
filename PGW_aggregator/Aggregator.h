@@ -29,7 +29,7 @@ public:
     void WakeUp();
 private:
     static const int cdrQueueSize = 500;
-    static const size_t maxAlertMessageLen = 2000;
+
 
     int thisIndex;
     boost::lockfree::queue<GPRSRecord*, boost::lockfree::fixed_sized<true>> cdrQueue;

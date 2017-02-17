@@ -1,7 +1,10 @@
 #include "MainLoopController.h"
 #include "LogWriter.h"
+#include "Config.h"
+#include "Utils.h"
 
 extern LogWriter logWriter;
+extern Config config;
 
 MainLoopController::MainLoopController(const std::string &connectString, const std::string &filesDirectory,
                                        const std::string &extension, const std::string &archDirectory, const std::string &badDirectory) :
@@ -21,6 +24,8 @@ void MainLoopController::Run()
     filesystem::path cdrPath(cdrFilesDirectory);
     bool allCdrProcessed = false;
     std::string lastPostponeReason;
+    time_t lastCdrFileTime = time(nullptr);
+    bool missingCdrAlertSent = false;
     try {
         while(!IsShutdownFlagSet()) {
             parser.RefreshExportRulesIfNeeded();
@@ -31,6 +36,7 @@ void MainLoopController::Run()
                         dirIterator->path().extension() == cdrExtension) {
                     filesFound = true;
                     allCdrProcessed = false;
+                    lastCdrFileTime = time(nullptr);
                     if (parser.IsReady()) {
                         lastPostponeReason.clear();
                         parser.ProcessFile(dirIterator->path());
@@ -52,7 +58,15 @@ void MainLoopController::Run()
                     allCdrProcessed = true;
                     logWriter << "All CDR files processed.";
                 }
+                double diff = Utils::DiffMinutes(time(nullptr), lastCdrFileTime);
+                if (diff >= config.noCdrAlertPeriodMin && !missingCdrAlertSent) {
+                    logWriter << "Sending missing CDR alert";
+                    missingCdrAlertSent = parser.SendMissingCdrAlert(diff);
+                }
                 Sleep();
+            }
+            else {
+                missingCdrAlertSent = false;
             }
         }
     }
@@ -79,6 +93,8 @@ bool MainLoopController::IsShutdownFlagSet()
         return false;
     }
 }
+
+
 
 void MainLoopController::SetPrintContents(bool printContents)
 {

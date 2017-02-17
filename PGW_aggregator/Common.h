@@ -1,6 +1,5 @@
 #pragma once
 #include <map>
-//#include <functional>
 #include "OTL_Header.h"
 
 
@@ -19,6 +18,7 @@ const unsigned32 megabyteSizeInBytes = 1024 * 1024;
 const int secondsToSleepWhenNothingToDo = 3;
 const int maxPath = 1000;
 const int maxAttemptsToWriteToDB = 5;
+const size_t maxAlertMessageLen = 2000;
 
 const time_t notInitialized = 0;
 

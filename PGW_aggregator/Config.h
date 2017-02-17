@@ -24,7 +24,7 @@ public:
     unsigned long homePlmnID;
     unsigned long sessionEjectPeriodMin;
     unsigned long exportRulesRefreshPeriodMin;
-    unsigned long alertRepeatPeriodMin;
+    unsigned long noCdrAlertPeriodMin;
     LogLevel logLevel;
 private:
     const std::string connectStringParamName = "CONNECT_STRING";
@@ -37,7 +37,7 @@ private:
     const std::string homePlmnIdParamName = "HOME_PLMN_ID";
     const std::string sessionEjectPeriodParamName = "SESSION_EJECT_PERIOD";
     const std::string exportRulesRefreshPeriodParamName = "EXPORT_RULES_REFRESH_PERIOD";
-    const std::string alertRepeatPeriodParamName = "ALERT_REPEAT_PERIOD";
+    const std::string noCdrAlertPeriodParamName = "NO_CDR_ALERT_PERIOD_MIN";
     const std::string logLevelParamName = "LOG_LEVEL";
     const int minThreadCount = 1;
     const int maxThreadCount = 32;

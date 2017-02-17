@@ -10,7 +10,7 @@ Config::Config() :
     exportRulesRefreshPeriodMin(30),
     cdrExtension(".dat"),
     logLevel(notice),
-    alertRepeatPeriodMin(15)
+    noCdrAlertPeriodMin(15)
 {
 }
 
@@ -97,8 +97,8 @@ void Config::ReadConfigFile(std::ifstream& configStream)
                 throw std::runtime_error("Wrong value passed for " + option_name + ".");
             }
         }
-        else if (option_name == alertRepeatPeriodParamName) {
-            alertRepeatPeriodMin = ParseULongValue(option_name, option_value);
+        else if (option_name == noCdrAlertPeriodParamName) {
+            noCdrAlertPeriodMin = ParseULongValue(option_name, option_value);
         }
         else if (!option_name.empty()){
             throw std::runtime_error("Unknown parameter " + option_name + " found");
@@ -161,6 +161,6 @@ std::string Config::DumpAllSettings()
             sessionEjectPeriodParamName + ": " + std::to_string(sessionEjectPeriodMin) + crlf +
             exportRulesRefreshPeriodParamName + ": " + std::to_string(exportRulesRefreshPeriodMin) + crlf +
             logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice")) + crlf +
-            alertRepeatPeriodParamName + ": " + std::to_string(alertRepeatPeriodMin);
+            noCdrAlertPeriodParamName + ": " + std::to_string(noCdrAlertPeriodMin);
 }
 
