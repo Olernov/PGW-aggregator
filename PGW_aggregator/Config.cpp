@@ -131,6 +131,7 @@ void Config::ValidateParams()
 
     filesystem::path inputPath(inputDir);
     filesystem::path archivePath(archiveDir);
+    filesystem::path badPath(badDir);
 
     if (!filesystem::exists(inputPath)) {
         throw std::runtime_error(std::string("Input directory ") + inputDir + " does not exist");
@@ -144,6 +145,9 @@ void Config::ValidateParams()
     if (!filesystem::is_directory(archivePath)) {
         throw std::runtime_error(archiveDir + " is not a directory");
     }
+    if (!filesystem::is_directory(badPath)) {
+        throw std::runtime_error(badDir + " is not a directory");
+    }
     if (!(threadCount >= minThreadCount && threadCount <= maxThreadCount)) {
         throw std::runtime_error(threadCountParamName + " must have value from " +
                                  std::to_string(minThreadCount) + " to " + std::to_string(maxThreadCount));
@@ -155,6 +159,7 @@ std::string Config::DumpAllSettings()
     return connectStringParamName + ": " + connectString + crlf +
            inputDirParamName + ": " + inputDir + crlf +
             archiveDirParamName + ": " + archiveDir + crlf +
+            badDirParamName + ": " + badDir + crlf +
             logDirParamName + ": " + logDir + crlf +
             cdrExtensionParamName + ": " + cdrExtension + crlf +
             homePlmnIdParamName + ": " + std::to_string(homePlmnID) + crlf +

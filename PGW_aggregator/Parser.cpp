@@ -58,8 +58,8 @@ void Parser::ProcessFile(const filesystem::path& file)
         logWriter << "File " + file.filename().string() + " processed.";
         RegisterFileStats(file.filename().string(), totals);
     }
-    catch(const parse_error& ex) {
-        logWriter.Write("ERROR while processing:", mainThreadIndex, error);
+    catch(const std::exception& ex) {
+        logWriter.Write("ERROR while ProcessFile:", mainThreadIndex, error);
         logWriter.Write(ex.what(), mainThreadIndex, error);
         if (!cdrBadDirectory.empty()) {
             filesystem::path badFilePath(cdrBadDirectory);
@@ -100,6 +100,7 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
             if (fileContents) {
                 fclose(fileContents);
             }
+            //TODO: unhandled exceptions
             throw std::invalid_argument("Error while decoding ASN file. Error code " + std::to_string(rval.code));
         }
         if (printFileContents && fileContents != NULL) {
@@ -108,10 +109,10 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
         nextChunk += rval.consumed;
         if (gprsRecord->present == GPRSRecord_PR_pGWRecord && gprsRecord->choice.pGWRecord.servedIMSI &&
                 gprsRecord->choice.pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
+            AccumulateStats(totals, gprsRecord->choice.pGWRecord);
             auto& aggr = GetAppropiateAggregator(gprsRecord);
             aggr.AddCdrToQueue(gprsRecord);
             aggr.WakeUp();
-            AccumulateStats(totals, gprsRecord->choice.pGWRecord);
         }
         recordCount++;
     }
@@ -224,6 +225,7 @@ void Parser::SetStopFlag()
     stopFlag = true;
     for (auto& agr : aggregators) {
         agr.get()->SetStopFlag();
+        agr.get()->WakeUp();
     }
 }
 

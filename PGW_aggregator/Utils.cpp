@@ -236,9 +236,11 @@ time_t Utils::Timestamp_to_time_t(const TimeStamp_t* pTimestamp)
 //-- hh = hour 00 to 23 BCD encoded
 //-- mm = minute 00 to 59 BCD encoded
     if (!pTimestamp) {
+        // TODO: unhandled exception
         throw std::string("Empty Timestamp given (NULL pointer)");
     }
     if (pTimestamp->size != 9) {
+        // TODO: unhandled exception
         throw std::string("Wrong format of Timestamp given: ") + PrintBinaryDump(pTimestamp);
     }
 	tm result;

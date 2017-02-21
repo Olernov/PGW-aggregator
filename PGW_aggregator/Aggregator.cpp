@@ -7,7 +7,6 @@
 
 
 extern LogWriter logWriter;
-//extern void Reconnect(otl_connect& dbConnect, short sessionIndex);
 
 std::mutex mutex;
 
@@ -49,26 +48,19 @@ void Aggregator::AggregatorThreadFunc()
         logWriter.Write("**** DB ERROR while logging to DB: **** " +
             crlf + exceptionText, thisIndex);
     }
-    bool cdrFound = false;
     while (!(stopFlag && cdrQueue.empty())) {
         GPRSRecord* gprsRecord;
         if (cdrQueue.pop(gprsRecord)) {
-            if (!cdrFound) {
-                cdrFound = true;
-            }
             ProcessCDR(gprsRecord->choice.pGWRecord);
             ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
         }
         else {
-            if (cdrFound) {
-                logWriter.Write("CDR queue has been processed. Sessions count: " + std::to_string(sessions.size()),
-                                thisIndex);
-                cdrFound = false;
-            }
             if (Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) > config.sessionEjectPeriodMin) {
                 EjectIdleSessions();
             }
             else {
+                logWriter.Write("CDR queue has been processed. Sessions count: " + std::to_string(sessions.size()),
+                                thisIndex, debug);
                 std::unique_lock<std::mutex> lock(mutex);
                 conditionVar.wait_for(lock, std::chrono::seconds(secondsToSleepWhenNothingToDo));
             }

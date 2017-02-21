@@ -87,11 +87,11 @@ bool LogWriter::Initialize(const std::string& logPath, LogLevel level)
 	return true;
 }
 
-bool LogWriter::Write(const LogMessage& message)
+bool LogWriter::Write(LogMessage* message)
 {
 	try {
-		LogMessage* pnewMessage = new LogMessage(message);
-		if (!messageQueue.push(pnewMessage))
+        //LogMessage* pnewMessage = new LogMessage(message);
+        if (!messageQueue.push(message))
 			throw LogWriterException("Unable to add message to log queue");
 	}
 	catch(...){
@@ -106,7 +106,7 @@ bool LogWriter::Write(std::string message, short threadIndex, LogLevel msgLevel)
         time_t now;
         time(&now);
         LogMessage* pnewMessage = new LogMessage(now, threadIndex, message);
-        Write(*pnewMessage);
+        Write(pnewMessage);
     }
 	return true;
 }

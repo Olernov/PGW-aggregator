@@ -47,7 +47,7 @@ public:
     ~LogWriter();
     bool Initialize(const std::string& logPath, LogLevel logLevel);
     bool Write(std::string message, short threadIndex = mainThreadIndex, LogLevel msgLevel = notice);
-	bool Write(const LogMessage&);
+
     bool LogOtlException(const std::string& header, const otl_exception& otlEx, short threadIndex);
     void operator<<(const std::string&);
 	inline std::exception_ptr GetException() { return m_excPointer; }
@@ -66,5 +66,6 @@ private:
     std::ofstream m_logStream;
 	std::string m_logFileDate;
     void WriteThreadFunction();
+    bool Write(LogMessage*);
     void SetLogStream(time_t messageTime);
 };

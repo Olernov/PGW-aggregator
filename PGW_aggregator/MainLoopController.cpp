@@ -1,3 +1,4 @@
+#include <boost/filesystem.hpp>
 #include "MainLoopController.h"
 #include "LogWriter.h"
 #include "Config.h"
@@ -21,13 +22,13 @@ MainLoopController::MainLoopController(const std::string &connectString, const s
 
 void MainLoopController::Run()
 {
-    filesystem::path cdrPath(cdrFilesDirectory);
+    filesystem::path cdrPath(cdrFilesDirectory + "aa");
     bool allCdrProcessed = false;
     std::string lastPostponeReason;
     time_t lastCdrFileTime = time(nullptr);
     bool missingCdrAlertSent = false;
-    try {
-        while(!IsShutdownFlagSet()) {
+    while(!IsShutdownFlagSet()) {
+        try {
             parser.RefreshExportRulesIfNeeded();
             filesystem::directory_iterator endIterator;
             bool filesFound = false;
@@ -69,11 +70,11 @@ void MainLoopController::Run()
                 missingCdrAlertSent = false;
             }
         }
-    }
-    catch(const std::exception& ex) {
-            logWriter.Write("Parser ERROR: ", mainThreadIndex, error);
+        catch(const std::exception& ex) {
+            logWriter.Write("ERROR in MainLoopProcessor::Run:", mainThreadIndex, error);
             logWriter.Write(ex.what(), mainThreadIndex, error);
-            lastExceptionText = ex.what();
+            Sleep();
+        }
     }
     logWriter << "Shutting down ...";
 }

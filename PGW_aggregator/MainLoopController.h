@@ -20,7 +20,6 @@ private:
 
     bool printFileContents;
     bool stopFlag;
-    std::string lastExceptionText;
 
     const size_t maxAlertMessageLen = 2000;
     std::string lastAlertMessage;
