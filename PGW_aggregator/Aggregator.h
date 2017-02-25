@@ -29,7 +29,7 @@ public:
     void WakeUp();
 private:
     static const int cdrQueueSize = 500;
-
+    static const int mapSizeReportPeriodMin = 5;
 
     int thisIndex;
     boost::lockfree::queue<GPRSRecord*, boost::lockfree::fixed_sized<true>> cdrQueue;
@@ -44,13 +44,15 @@ private:
     std::string lastExceptionText;
     ExportRules& exportRules;
     time_t lastIdleSessionsEject;
+    time_t lastMapSizeReport;
 
     void CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
     SessionMap::iterator CreateSession(const PGWRecord& pGWRecord,
                        unsigned32 ratingGroup, unsigned32 volumeUplink, unsigned32 volumeDownlink);
     void ExportSession(Session_ptr sessionPtr);
     void ExportAllSessionsToDB();
-    void EjectIdleSessions();
+    bool EjectOneIdleSession();
+    void MapSizeReportIfNeeded();
     void SendAlertIfNeeded(const std::string&);
 };
 

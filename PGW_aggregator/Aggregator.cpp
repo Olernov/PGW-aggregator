@@ -17,7 +17,8 @@ Aggregator::Aggregator(int index, const std::string& connectString, ExportRules 
     connectString(connectString),
     exportRules(er),
     cdrQueue(cdrQueueSize),
-    stopFlag(false)
+    stopFlag(false),
+    lastMapSizeReport(notInitialized)
 {
     time(&lastIdleSessionsEject);
     thread = std::thread(&Aggregator::AggregatorThreadFunc, this);
@@ -55,11 +56,9 @@ void Aggregator::AggregatorThreadFunc()
             ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
         }
         else {
-            if (Utils::DiffMinutes(time(nullptr), lastIdleSessionsEject) > config.sessionEjectPeriodMin) {
-                EjectIdleSessions();
-            }
-            else {
-                logWriter.Write("CDR queue has been processed. Sessions count: " + std::to_string(sessions.size()),
+            MapSizeReportIfNeeded();
+            if (!EjectOneIdleSession()) {
+                logWriter.Write("CDR queue processed and nothing to eject. Sessions count: " + std::to_string(sessions.size()),
                                 thisIndex, debug);
                 std::unique_lock<std::mutex> lock(mutex);
                 conditionVar.wait_for(lock, std::chrono::seconds(secondsToSleepWhenNothingToDo));
@@ -170,9 +169,8 @@ void Aggregator::ExportAllSessionsToDB()
 }
 
 
-void Aggregator::EjectIdleSessions()
+bool Aggregator::EjectOneIdleSession()
 {
-    logWriter.Write("Start of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), thisIndex);
     time_t now;
     time(&now);
     for (auto it = sessions.begin(); it != sessions.end(); it++) {
@@ -181,10 +179,24 @@ void Aggregator::EjectIdleSessions()
             if (!it->second->HaveDataToExport()) {
                 sessions.erase(it);
             }
+            logWriter.Write("One idle session was ejected. Sessions count: " + std::to_string(sessions.size()),
+                            thisIndex, debug);
+            return true;
         }
     }
-    time(&lastIdleSessionsEject);
-    logWriter.Write("Finish of ejecting idle sessions. Map size: " + std::to_string(sessions.size()), thisIndex);
+    return false;
+}
+
+void Aggregator::MapSizeReportIfNeeded()
+{
+    time_t now;
+    time(&now);
+    if (Utils::DiffMinutes(lastMapSizeReport, now) > mapSizeReportPeriodMin) {
+        double fillPercent = static_cast<double>(sessions.size()) / sessions.max_size() * 100;
+        logWriter.Write("Sessions count: " + std::to_string(sessions.size()) + "(" +
+                        std::to_string(fillPercent) + "% from max)", thisIndex);
+        lastMapSizeReport = now;
+    }
 }
 
 

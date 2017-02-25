@@ -133,8 +133,14 @@ int main(int argc, const char* argv[])
 		dbConnect.logoff();
 	}
     catch(otl_exception& ex) {
-        std::cerr << Utils::OtlExceptionToText(ex) << std::endl;
-	}
+        std::string errMessage = Utils::OtlExceptionToText(ex);
+        std::cerr << errMessage << std::endl;
+        logWriter.Write(errMessage, mainThreadIndex, error);
+    }
+    catch(std::exception& ex) {
+        std::cerr << ex.what() << std::endl;
+        logWriter.Write(ex.what(), mainThreadIndex, error);
+    }
     logWriter << "PGW aggregator shutdown";
     filesystem::remove(pidFilename);
     return 0;

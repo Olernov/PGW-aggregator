@@ -22,7 +22,7 @@ MainLoopController::MainLoopController(const std::string &connectString, const s
 
 void MainLoopController::Run()
 {
-    filesystem::path cdrPath(cdrFilesDirectory + "aa");
+    filesystem::path cdrPath(cdrFilesDirectory);
     bool allCdrProcessed = false;
     std::string lastPostponeReason;
     time_t lastCdrFileTime = time(nullptr);

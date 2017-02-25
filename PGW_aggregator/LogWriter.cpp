@@ -13,10 +13,8 @@ void LogWriter::SetLogStream(time_t messageTime)
     localtime_r(&messageTime, &messageTimeTm);
 	char dateBuf[30];
     snprintf(dateBuf, 30, "%4.4d%2.2d%2.2d", messageTimeTm.tm_year+1900, messageTimeTm.tm_mon+1, messageTimeTm.tm_mday);
-	if(std::string(dateBuf) != m_logFileDate) {
-		if(m_logStream.is_open()) {
-			m_logStream.close();
-		}
+    if(std::string(dateBuf) != m_logFileDate || !m_logStream.is_open()) {
+        m_logStream.close();
         char logName[maxPath];
         if(!m_logPath.empty()) {
             snprintf(logName, maxPath, "%s/pgw_%s.log", m_logPath.c_str(), dateBuf);
