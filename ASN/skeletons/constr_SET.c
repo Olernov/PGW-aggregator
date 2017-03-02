@@ -5,7 +5,6 @@
  */
 #include <asn_internal.h>
 #include <constr_SET.h>
-#include "constraints.h"
 
 /* Check that all the mandatory members are present */
 static int _SET_is_populated(asn_TYPE_descriptor_t *td, void *st);

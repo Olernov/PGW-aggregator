@@ -5,7 +5,6 @@
  */
 #include <asn_internal.h>
 #include <UTF8String.h>
-#include "constraints.h"
 
 /*
  * UTF8String basic type description.

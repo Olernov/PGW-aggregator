@@ -6,7 +6,6 @@
 #include <UTCTime.h>
 #include <GeneralizedTime.h>
 #include <errno.h>
-#include "constraints.h"
 
 #ifdef	__CYGWIN__
 #include "/usr/include/time.h"

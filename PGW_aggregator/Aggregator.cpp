@@ -66,7 +66,7 @@ void Aggregator::AggregatorThreadFunc()
         }
     }
     logWriter.Write("Shutdown flag set.", thisIndex);
-    ExportAllSessionsToDB();
+// DEBUG!!    ExportAllSessionsToDB();
     logWriter.Write("Thread finish", thisIndex);
     if (dbConnect.connected) {
         dbConnect.commit();
@@ -193,7 +193,7 @@ void Aggregator::MapSizeReportIfNeeded()
     time(&now);
     if (Utils::DiffMinutes(lastMapSizeReport, now) > mapSizeReportPeriodMin) {
         double fillPercent = static_cast<double>(sessions.size()) / sessions.max_size() * 100;
-        logWriter.Write("Sessions count: " + std::to_string(sessions.size()) + "(" +
+        logWriter.Write("Sessions count: " + std::to_string(sessions.size()) + " (" +
                         std::to_string(fillPercent) + "% from max)", thisIndex);
         lastMapSizeReport = now;
     }

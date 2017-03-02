@@ -8,7 +8,6 @@
 #include <OCTET_STRING.h>
 #include <limits.h>	/* for CHAR_BIT */
 #include <errno.h>
-#include "constraints.h"
 
 /*
  * OBJECT IDENTIFIER basic type description.
@@ -112,8 +111,8 @@ OBJECT_IDENTIFIER_get_single_arc(const uint8_t *arcbuf, unsigned int arclen, sig
 	}
 
 	/* Faster path for common size */
-    if(rvsize == (CHAR_BIT * sizeof(unsigned long))) {
-        unsigned long accum;
+	if(rvsize == (CHAR_BIT * sizeof(unsigned long))) {
+		unsigned long accum;
 		/* Gather all bits into the accumulator */
 		for(accum = cache; arcbuf < arcend; arcbuf++)
 			accum = (accum << 7) | (*arcbuf & ~0x80);
@@ -121,7 +120,7 @@ OBJECT_IDENTIFIER_get_single_arc(const uint8_t *arcbuf, unsigned int arclen, sig
 			errno = ERANGE;	/* Overflow */
 			return -1;
 		}
-        *(unsigned long *)(void *)rvbuf = accum + add;	/* alignment OK! */
+		*(unsigned long *)(void *)rvbuf = accum + add;	/* alignment OK! */
 		return 0;
 	}
 
@@ -163,7 +162,7 @@ OBJECT_IDENTIFIER_get_single_arc(const uint8_t *arcbuf, unsigned int arclen, sig
 	if(add) {
 		for(rvbuf -= inc; rvbuf != rvstart; rvbuf -= inc) {
 			int v = add + *rvbuf;
-			if(v & (-1 << CHAR_BIT)) {
+			if(v & ((unsigned)~0 << CHAR_BIT)) {
 				*rvbuf = (unsigned char)(v + (1 << CHAR_BIT));
 				add = -1;
 			} else {
@@ -185,7 +184,7 @@ ssize_t
 OBJECT_IDENTIFIER__dump_arc(const uint8_t *arcbuf, int arclen, int add,
 		asn_app_consume_bytes_f *cb, void *app_key) {
 	char scratch[64];	/* Conservative estimate */
-    unsigned long accum;	/* Bits accumulator */
+	unsigned long accum;	/* Bits accumulator */
 	char *p;		/* Position in the scratch buffer */
 
 	if(OBJECT_IDENTIFIER_get_single_arc(arcbuf, arclen, add,

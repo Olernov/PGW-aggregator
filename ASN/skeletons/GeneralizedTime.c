@@ -7,7 +7,6 @@
 #define _BSD_SOURCE     /* for timegm(3) */
 #include <asn_internal.h>
 #include <GeneralizedTime.h>
-#include "constraints.h"
 
 #ifdef	__CYGWIN__
 #include "/usr/include/time.h"

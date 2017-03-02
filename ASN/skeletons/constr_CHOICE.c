@@ -6,7 +6,6 @@
 #include <asn_internal.h>
 #include <constr_CHOICE.h>
 #include <per_opentype.h>
-#include "constraints.h"
 
 /*
  * Number of bytes left for this structure.

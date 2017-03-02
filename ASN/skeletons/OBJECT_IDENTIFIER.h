@@ -33,8 +33,8 @@ xer_type_encoder_f OBJECT_IDENTIFIER_encode_xer;
  * 
  * EXAMPLE:
  * 	void print_arcs(OBJECT_IDENTIFIER_t *oid) {
- * 		u32 fixed_arcs[10];	// Try with fixed space first
- * 		u32 *arcs = fixed_arcs;
+ * 		unsigned long fixed_arcs[10];	// Try with fixed space first
+ * 		unsigned long *arcs = fixed_arcs;
  * 		int arc_type_size = sizeof(fixed_arcs[0]);	// sizeof(long)
  * 		int arc_slots = sizeof(fixed_arcs)/sizeof(fixed_arcs[0]); // 10
  * 		int count;	// Real number of arcs.

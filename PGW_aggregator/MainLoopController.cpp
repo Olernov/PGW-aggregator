@@ -52,6 +52,7 @@ void MainLoopController::Run()
                     if (IsShutdownFlagSet()) {
                         break;
                     }
+                    parser.RefreshExportRulesIfNeeded();
                 }
             }
             if (!filesFound) {

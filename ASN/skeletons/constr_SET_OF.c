@@ -6,7 +6,7 @@
 #include <asn_internal.h>
 #include <constr_SET_OF.h>
 #include <asn_SET_OF.h>
-#include "constraints.h"
+
 /*
  * Number of bytes left for this structure.
  * (ctx->left) indicates the number of bytes _transferred_ for the structure.

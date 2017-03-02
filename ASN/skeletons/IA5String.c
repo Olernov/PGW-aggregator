@@ -4,7 +4,6 @@
  */
 #include <asn_internal.h>
 #include <IA5String.h>
-#include "constraints.h"
 
 /*
  * IA5String basic type description.

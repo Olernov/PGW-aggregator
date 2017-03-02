@@ -1201,7 +1201,7 @@ OCTET_STRING_per_get_characters(asn_per_data_t *po, uint8_t *buf,
 		(int)units, lb, ub, unit_bits);
 
 	/* X.691: 27.5.4 */
-    if((unsigned long)ub <= ((unsigned long)2 << (unit_bits - 1))) {
+	if((unsigned long)ub <= ((unsigned long)2 << (unit_bits - 1))) {
 		/* Decode without translation */
 		lb = 0;
 	} else if(pc && pc->code2value) {
@@ -1265,7 +1265,7 @@ OCTET_STRING_per_put_characters(asn_per_outp_t *po, const uint8_t *buf,
 		(int)units, lb, ub, unit_bits, bpc);
 
 	/* X.691: 27.5.4 */
-    if((unsigned long)ub <= ((unsigned long)2 << (unit_bits - 1))) {
+	if((unsigned long)ub <= ((unsigned long)2 << (unit_bits - 1))) {
 		/* Encode as is */
 		lb = 0;
 	} else if(pc && pc->value2code) {

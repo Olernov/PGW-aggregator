@@ -4,7 +4,6 @@
  */
 #include <asn_internal.h>
 #include <VisibleString.h>
-#include "constraints.h"
 
 /*
  * VisibleString basic type description.

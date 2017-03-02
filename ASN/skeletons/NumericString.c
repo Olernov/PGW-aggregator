@@ -4,7 +4,6 @@
  */
 #include <asn_internal.h>
 #include <NumericString.h>
-#include "constraints.h"
 
 /*
  * NumericString basic type description.

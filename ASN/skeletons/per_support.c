@@ -266,7 +266,7 @@ uper_put_nsnnwn(asn_per_outp_t *po, int n) {
 
 /* X.691-2008/11, #11.5.6 -> #11.3 */
 int uper_get_constrained_whole_number(asn_per_data_t *pd, unsigned long *out_value, int nbits) {
-    unsigned long lhalf;    /* Lower half of the number*/
+	unsigned long lhalf;    /* Lower half of the number*/
 	long half;
 
 	if(nbits <= 31) {
@@ -285,7 +285,7 @@ int uper_get_constrained_whole_number(asn_per_data_t *pd, unsigned long *out_val
 	if(uper_get_constrained_whole_number(pd, &lhalf, nbits - 31))
 		return -1;
 
-    *out_value = ((unsigned long)half << (nbits - 31)) | lhalf;
+	*out_value = ((unsigned long)half << (nbits - 31)) | lhalf;
 	return 0;
 }
 
@@ -298,9 +298,9 @@ int uper_put_constrained_whole_number_s(asn_per_outp_t *po, long v, int nbits) {
 	 * The following testing code will likely be optimized out
 	 * by compiler if it is true.
 	 */
-    unsigned long uvalue1 = ULONG_MAX;
+	unsigned long uvalue1 = ULONG_MAX;
 	         long svalue  = uvalue1;
-    unsigned long uvalue2 = svalue;
+	unsigned long uvalue2 = svalue;
 	assert(uvalue1 == uvalue2);
 	return uper_put_constrained_whole_number_u(po, v, nbits);
 }

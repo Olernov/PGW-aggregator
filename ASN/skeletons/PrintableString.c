@@ -5,7 +5,6 @@
  */
 #include <asn_internal.h>
 #include <PrintableString.h>
-#include "constraints.h"
 
 /*
  * ASN.1:1984 (X.409)
