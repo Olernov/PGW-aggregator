@@ -25,10 +25,10 @@ Aggregator::Aggregator(int index, const std::string& connectString, ExportRules 
 }
 
 
-void Aggregator::AddCdrToQueue(const GPRSRecord *gprsRecord)
+void Aggregator::AddCdrToQueue(GPRSRecord *gprsRecord)
 {
     bool queueIsFull = false;
-    while (!cdrQueue.push(const_cast<GPRSRecord*>(gprsRecord))) {
+    while (!cdrQueue.push(gprsRecord)) {
         if (!queueIsFull) {
             logWriter.Write("AddCdrToQueue: CDR queue max size reached (" + std::to_string(cdrQueueSize) + ")",
                             thisIndex, debug);
@@ -66,7 +66,7 @@ void Aggregator::AggregatorThreadFunc()
         }
     }
     logWriter.Write("Shutdown flag set.", thisIndex);
-// DEBUG!!    ExportAllSessionsToDB();
+    ExportAllSessionsToDB();
     logWriter.Write("Thread finish", thisIndex);
     if (dbConnect.connected) {
         dbConnect.commit();

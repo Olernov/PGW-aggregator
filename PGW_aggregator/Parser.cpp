@@ -48,6 +48,8 @@ void Parser::ProcessFile(const filesystem::path& file)
         return;
     }
     logWriter << "Processing file " + file.filename().string() + "...";
+    time_t processStartTime;
+    time(&processStartTime);
     try {
         auto totals = ParseFile(pgwFile, file.string());
         if (!cdrArchiveDirectory.empty()) {
@@ -55,8 +57,10 @@ void Parser::ProcessFile(const filesystem::path& file)
             filesystem::path archiveFilename = archivePath / file.filename();
             filesystem::rename(file, archiveFilename);
         }
-        logWriter << "File " + file.filename().string() + " processed.";
-        RegisterFileStats(file.filename().string(), totals);
+        long processTimeSec = Utils::DiffMinutes(processStartTime, time(nullptr)) * 60;
+        logWriter << "File " + file.filename().string() + " processed in " +
+                     std::to_string(processTimeSec) + " sec.";
+        RegisterFileStats(file.filename().string(), totals, processTimeSec);
     }
     catch(const std::exception& ex) {
         logWriter.Write("ERROR while ProcessFile:", mainThreadIndex, error);
@@ -114,6 +118,9 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
             aggr.AddCdrToQueue(gprsRecord);
             aggr.WakeUp();
         }
+        else {
+            ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
+        }
         recordCount++;
     }
     if (fileContents) {
@@ -169,7 +176,7 @@ bool Parser::ChargingAllowed()
     return res > 0;
 }
 
-void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals)
+void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec)
 {
     int attemptCount = 0;
     while (attemptCount++ < maxAttemptsToWriteToDB) {
@@ -177,14 +184,15 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
             otl_stream dbStream;
             dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
                           ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/, "
-                          ":earliest_time<timestamp>, :latest_time<timestamp> )", dbConnect);
+                          ":earliest_time/*timestamp*/, :latest_time/*timestamp*/, :process_time /*long*/)", dbConnect);
             dbStream
                     << filename
                     << static_cast<signed64>(totals.volumeUplink)
                     << static_cast<signed64>(totals.volumeDownlink)
                     << static_cast<long>(totals.recordCount)
                     << Utils::Time_t_to_OTL_datetime(totals.earliestTime)
-                    << Utils::Time_t_to_OTL_datetime(totals.latestTime) ;
+                    << Utils::Time_t_to_OTL_datetime(totals.latestTime)
+                    << processTimeSec;
             dbStream.close();
             break;
         }

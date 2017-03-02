@@ -59,7 +59,7 @@ private:
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool ChargingAllowed();
     void AccumulateStats(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);
-    void RegisterFileStats(const std::string& filename, CdrFileTotals totals);
+    void RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec);
     void AlertAggregatorExceptions();
 };
 

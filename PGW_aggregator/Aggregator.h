@@ -20,7 +20,7 @@ class Aggregator
 public:
     Aggregator(int index, const std::string &connectString, ExportRules& er);
     ~Aggregator();
-    void AddCdrToQueue(const GPRSRecord* gprsRecord);
+    void AddCdrToQueue(GPRSRecord* gprsRecord);
     void AggregatorThreadFunc();
     void ProcessCDR(const PGWRecord &pGWRecord);
     std::string GetExceptionMessage() const;
