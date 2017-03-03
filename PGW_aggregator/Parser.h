@@ -41,20 +41,20 @@ public:
     const std::string& GetPostponeReason() const { return postponeReason; }
     bool SendMissingCdrAlert(double diffMinutes);
 private:
+    const std::string shutdownFlagFilename = "pgw-aggregator.stop";
     std::string cdrArchiveDirectory;
     std::string cdrBadDirectory;
-    const std::string shutdownFlagFilename = "pgw-aggregator.stop";
     std::string shutdownFilePath;
     DBConnect dbConnect;
     std::vector<Aggregator_ptr> aggregators;
     ExportRules exportRules;
-
-    bool printFileContents;
-    bool stopFlag;
     std::string lastExceptionText;
     std::string postponeReason;
     std::string lastAlertMessage;
+    bool printFileContents;
+    bool stopFlag;
     time_t lastAlertTime;
+
     CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool ChargingAllowed();

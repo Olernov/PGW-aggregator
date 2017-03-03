@@ -82,8 +82,9 @@ unsigned64 Utils::TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDString)
 
 unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 {
-	if (!pIPAddress)
-        throw std::string("Empty IP address given (NULL pointer)");
+    if (!pIPAddress) {
+        throw std::runtime_error("Empty IP address given (NULL pointer)");
+    }
     unsigned32 ip_addr_ulong = 0;
     std::string textIP;
 	unsigned int next_octet; // not uint8_t cause we will control 8-bit overflow
@@ -136,7 +137,9 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
                 throw std::string("Wrong text represented IP address given: ") + textIP;
 			break;
 		case IPTextRepresentedAddress_PR_iPTextV6Address:
-            throw std::string("IPv6 parsing not implemented.");
+            throw std::runtime_error("IPv6 parsing not implemented.");
+        default:
+            throw std::runtime_error("Unknown IPAddress_PR_iPTextRepresentedAddress.");
 		}
 		break;
 	case IPAddress_PR_NOTHING:
@@ -162,9 +165,9 @@ std::string Utils::BinIPAddress_to_Text(unsigned32 ipAddress)
 
 std::string Utils::PrintBinaryDump(const OCTET_STRING* pOctetStr)
 {
-	const size_t buffer_size = 256;
+    const int buffer_size = 256;
 	char buffer[buffer_size];
-	int i = 0;
+    int i = 0;
 	for (; i < pOctetStr->size; i++) {
 		if (3 * (i + 1) >= buffer_size - 1)
 			break;
@@ -237,11 +240,11 @@ time_t Utils::Timestamp_to_time_t(const TimeStamp_t* pTimestamp)
 //-- mm = minute 00 to 59 BCD encoded
     if (!pTimestamp) {
         // TODO: unhandled exception
-        throw std::string("Empty Timestamp given (NULL pointer)");
+        throw std::runtime_error("Empty Timestamp given (NULL pointer)");
     }
     if (pTimestamp->size != 9) {
         // TODO: unhandled exception
-        throw std::string("Wrong format of Timestamp given: ") + PrintBinaryDump(pTimestamp);
+        throw std::runtime_error("Wrong format of Timestamp given: " + PrintBinaryDump(pTimestamp));
     }
 	tm result;
 	result.tm_year = 100 + BCDString_to_ULong(&pTimestamp->buf[0], 1); // years since 1900
@@ -262,7 +265,8 @@ bool Utils::Timestamp_to_time_t_Test()
     const char *dateStr = "160530153819+0300";
     OCTET_STRING_t* octetStr = OCTET_STRING_new_fromBuf(&asn_DEF_TimeStamp,
         dateStr, strlen(dateStr));
-    // TODO:
+    // TODO: write test
+    return false;
 }
 
 
@@ -518,7 +522,7 @@ bool Utils::SumDataVolumesByRatingGroup_Test()
     PGWRecord rec;
     void* ptr = &rec.listOfServiceData;
     ptr = calloc(1, sizeof(PGWRecord::listOfServiceData));
-    // TODO:
+    // TODO: write test
     return success;
 }
 

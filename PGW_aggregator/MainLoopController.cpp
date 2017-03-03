@@ -12,9 +12,9 @@ MainLoopController::MainLoopController(const std::string &connectString, const s
     parser(connectString, filesDirectory, extension, archDirectory, badDirectory),
     cdrFilesDirectory(filesDirectory),
     cdrExtension(extension),
-    stopFlag(false),
     shutdownFilePath(filesDirectory + "/" + shutdownFlagFilename),
     printFileContents(false),
+    stopFlag(false),
     lastAlertTime(notInitialized)
 {
 }

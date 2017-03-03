@@ -14,10 +14,10 @@ Parser::Parser(const std::string &connectString, const std::string &filesDirecto
                const std::string &archDirectory, const std::string &badDirectory) :
     cdrArchiveDirectory(archDirectory),
     cdrBadDirectory(badDirectory),
-    exportRules(dbConnect, config.exportRulesRefreshPeriodMin),
-    stopFlag(false),
     shutdownFilePath(filesDirectory + "/" + shutdownFlagFilename),
+    exportRules(dbConnect, config.exportRulesRefreshPeriodMin),
     printFileContents(false),
+    stopFlag(false),
     lastAlertTime(notInitialized)
 {
     dbConnect.rlogon(connectString.c_str());
@@ -104,7 +104,6 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
             if (fileContents) {
                 fclose(fileContents);
             }
-            //TODO: unhandled exceptions
             throw std::invalid_argument("Error while decoding ASN file. Error code " + std::to_string(rval.code));
         }
         if (printFileContents && fileContents != NULL) {

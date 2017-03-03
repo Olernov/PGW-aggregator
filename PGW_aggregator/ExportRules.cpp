@@ -8,9 +8,9 @@ extern LogWriter logWriter;
 
 ExportRules::ExportRules(DBConnect &conn, unsigned long refreshPeriodMin) :
     refreshInProgress(false),
+    refreshPeriodMin(refreshPeriodMin),
     lastRefresh(notInitialized),
-    dbConnect(conn),
-    refreshPeriodMin(refreshPeriodMin)
+    dbConnect(conn)
 {}
 
 void ExportRules::RefreshIfNeeded()
@@ -29,7 +29,6 @@ void ExportRules::RefreshIfNeeded()
                     "from Billing.PGW_Rating_Groups", dbConnect);
         ratingGroups.clear();
         const int thresholdParamsCount = 4;
-        int currentThresholdParam = 0;
         while(!stream.eof()) {
             long ratingGroup;
             std::string direction;
@@ -70,7 +69,6 @@ bool ExportRules::IsReadyForExport(Session_ptr sessionPtr)
     while (refreshInProgress) {
         std::this_thread::sleep_for(std::chrono::seconds(0));
     }
-    time_t now;
 
     Session* session = sessionPtr.get();
     auto iter = ratingGroups.find(session->ratingGroup);

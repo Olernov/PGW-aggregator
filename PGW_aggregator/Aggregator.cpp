@@ -14,10 +14,11 @@ extern Config config;
 
 Aggregator::Aggregator(int index, const std::string& connectString, ExportRules &er) :
     thisIndex(index),
-    connectString(connectString),
-    exportRules(er),
     cdrQueue(cdrQueueSize),
     stopFlag(false),
+    connectString(connectString),
+    exportRules(er),
+    lastIdleSessionsEject(notInitialized),
     lastMapSizeReport(notInitialized)
 {
     time(&lastIdleSessionsEject);

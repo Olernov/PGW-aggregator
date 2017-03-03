@@ -4,13 +4,13 @@
 using namespace boost;
 
 Config::Config() :
+    cdrExtension(".dat"),
     threadCount(8),
     homePlmnID(25027),
     sessionEjectPeriodMin(30),
     exportRulesRefreshPeriodMin(30),
-    cdrExtension(".dat"),
-    logLevel(notice),
-    noCdrAlertPeriodMin(15)
+    noCdrAlertPeriodMin(15),
+    logLevel(notice)
 {
 }
 

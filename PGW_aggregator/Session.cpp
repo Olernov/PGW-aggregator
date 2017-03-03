@@ -16,21 +16,22 @@ Session::Session(unsigned32 chargingID,
     unsigned32 dataVolumeDownlink,
     time_t cdrTime	) :
         chargingID(chargingID),
+        ratingGroup(ratingGroup),
+        lastUpdateTime(time(nullptr)),
+        lastExportTime(notInitialized),
         iMSI(iMSI),
         mSISDN(mSISDN),
         iMEI(iMEI),
         accessPointName(accessPointName),
         servingNodeIP(servingNodeIP),
         servingNodePLMNID(servingNodePLMNID),
-        ratingGroup(ratingGroup),
         volumeUplinkAggregated(dataVolumeUplink),
         volumeDownlinkAggregated(dataVolumeDownlink),
         volumeUplinkExported(0),
         volumeDownlinkExported(0),
         startTime(cdrTime),
-        endTime(cdrTime + duration),
-        lastUpdateTime(time(nullptr)),
-        lastExportTime(notInitialized)
+        endTime(cdrTime + duration)
+
 {}
 
 
@@ -42,7 +43,7 @@ void Session::UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownl
     if (startTime == notInitialized || newCdrTime < startTime) {
         startTime = newCdrTime;
     }
-    if (newCdrTime + durationIncrease > endTime) {
+    if (newCdrTime + static_cast<time_t>(durationIncrease) > endTime) {
         endTime = newCdrTime + durationIncrease;
     }
     lastUpdateTime = time(nullptr);

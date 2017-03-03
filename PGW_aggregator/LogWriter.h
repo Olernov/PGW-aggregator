@@ -48,15 +48,13 @@ public:
     bool Initialize(const std::string& logPath, LogLevel logLevel);
     bool Write(std::string message, short threadIndex = mainThreadIndex, LogLevel msgLevel = notice);
 
-    bool LogOtlException(const std::string& header, const otl_exception& otlEx, short threadIndex);
+    void LogOtlException(const std::string& header, const otl_exception& otlEx, short threadIndex);
     void operator<<(const std::string&);
 	inline std::exception_ptr GetException() { return m_excPointer; }
 	void ClearException();
 private:
 	static const int queueSize = 128;
     static const int sleepWhenQueueEmpty = 3;
-	std::exception_ptr m_excPointer;
-    bool logToStdout;
     LogLevel logLevel;
 	std::string m_logPath;
 	boost::lockfree::queue<LogMessage*> messageQueue;
@@ -65,6 +63,8 @@ private:
 	std::mutex m_exceptionMutex;
     std::ofstream m_logStream;
 	std::string m_logFileDate;
+    std::exception_ptr m_excPointer;
+
     void WriteThreadFunction();
     bool Write(LogMessage*);
     void SetLogStream(time_t messageTime);
