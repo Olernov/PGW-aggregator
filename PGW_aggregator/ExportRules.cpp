@@ -71,7 +71,7 @@ bool ExportRules::IsReadyForExport(Session_ptr sessionPtr)
     }
 
     Session* session = sessionPtr.get();
-    auto iter = ratingGroups.find(session->ratingGroup);
+    std::map<unsigned32, RatingGroupSetting>::iterator iter = ratingGroups.find(session->ratingGroup);
     double thresholdUplinkMb, thresholdDownlinkMb, thresholdUplinkMin, thresholdDownlinkMin ;
     if (iter != ratingGroups.end()) {
         if (session->servingNodePLMNID == config.homePlmnID) {

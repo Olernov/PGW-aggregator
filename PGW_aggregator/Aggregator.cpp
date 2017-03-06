@@ -164,6 +164,7 @@ void Aggregator::ExportAllSessionsToDB()
         logWriter.Write("Exporting all sessions: " + std::to_string(sessions.size()), thisIndex);
         for (auto& it : sessions) {
             ExportSession(it.second);
+            MapSizeReportIfNeeded();
         }
     }
     logWriter.Write("All sessions exported.", thisIndex);

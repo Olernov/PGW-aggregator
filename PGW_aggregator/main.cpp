@@ -106,10 +106,8 @@ int main(int argc, const char* argv[])
             }
             ClearTestExportTable(dbConnect);
             dbConnect.commit();
-            std::cout << "Put 33 files from SampleCDR directory to your INPUT_DIR and type y to proceed"
-                << std::endl << "> ";
-            std::cin >> confirmation;
-            std::cout << "Loading sample CDR files ..." << std::endl;
+            std::cout << "Put 33 files from SampleCDR directory to your INPUT_DIR and wait until they all are processed."
+                << std::endl;
             std::cout << "After all sample CDR files are loaded please stop PGW aggregator as usual. "
                          "Then export checks would start automatically" << std::endl;
             testStart = time(nullptr);
