@@ -94,8 +94,8 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 		switch (pIPAddress->choice.iPBinaryAddress.present) {
 		case IPBinaryAddress_PR_iPBinV4Address:
 			if (pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.size > 4)
-                throw std::string("IPv4 address consists more than of 4 bytes: ") +
-					PrintBinaryDump(&pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address);
+                throw std::runtime_error("IPv4 address consists more than of 4 bytes: " +
+                    PrintBinaryDump(&pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address));
 			for (int i =0; i < pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.size; i++) {
 				ip_addr_ulong <<= 8;
 				ip_addr_ulong |= pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.buf[i];
@@ -103,7 +103,7 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 			break;
 		case IPBinaryAddress_PR_iPBinV6Address:
 			//if ()
-            throw std::string("IPv6 parsing not implemented.");
+            throw std::runtime_error("IPv6 parsing not implemented.");
 		case IPBinaryAddress_PR_NOTHING:
 			return emptyValueUL;
 		}
@@ -119,22 +119,22 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 					next_octet *= 10;
 					next_octet += c - '0';
 					if (next_octet > 0xFF)
-                        throw std::string("Wrong text represented IP address given: ") + textIP;
+                        throw std::runtime_error("Wrong text represented IP address given: " + textIP);
 				}
 				else if (c == '.') {
 					ip_addr_ulong <<= 8;
 					ip_addr_ulong |= next_octet;
 					if(++num_octets > 4)
-                        throw std::string("Wrong text represented IP address given: ") + textIP;
+                        throw std::runtime_error("Wrong text represented IP address given: "+ textIP);
 					next_octet = 0;
 				}
 				else
-                    throw std::string("Wrong text represented IP address given: ") + textIP;
+                    throw std::runtime_error("Wrong text represented IP address given: " + textIP);
 			}
 			ip_addr_ulong <<= 8;
 			ip_addr_ulong |= next_octet;
 			if(++num_octets != 4)
-                throw std::string("Wrong text represented IP address given: ") + textIP;
+                throw std::runtime_error("Wrong text represented IP address given: " + textIP);
 			break;
 		case IPTextRepresentedAddress_PR_iPTextV6Address:
             throw std::runtime_error("IPv6 parsing not implemented.");
@@ -143,7 +143,7 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
 		}
 		break;
 	case IPAddress_PR_NOTHING:
-        throw std::string("Empty IP address given (pIPAddress->present == IPAddress_PR_NOTHING)");
+        throw std::runtime_error("Empty IP address given (pIPAddress->present == IPAddress_PR_NOTHING)");
 	}
 	return ip_addr_ulong;
 }
@@ -191,10 +191,10 @@ unsigned32 Utils::PLMNID_to_ULong(const PLMN_Id_t* pPLMNID)
 	//	--         bits 8765	Mobile Network Code 2nd digit
 
 	if (!pPLMNID) {
-        throw std::string("Empty PLMN-ID given (NULL pointer)");
+        throw std::runtime_error("Empty PLMN-ID given (NULL pointer)");
 	}
 	if (pPLMNID->size != 3) {
-        throw std::string("Wrong PLMN-ID given: ") + PrintBinaryDump(pPLMNID);
+        throw std::runtime_error("Wrong PLMN-ID given: " + PrintBinaryDump(pPLMNID));
 	}
     unsigned32 plmnID =
 		(pPLMNID->buf[0] & 0x0F) * 10000 + ((pPLMNID->buf[0] & 0xF0) >> 4) * 1000 +
@@ -441,12 +441,12 @@ bool Utils::PLMNID_to_ULong_Test()
                 success = false;
             }
         }
-        catch(const std::string& exc_text) {
+        catch(const std::runtime_error& exc) {
             if (correct_results[i] == exception_flag) {
-                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED (exception caught: " << exc_text << "). " << std::endl;
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " PASSED (exception caught: " << exc.what() << "). " << std::endl;
             }
             else {
-                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED (exception caught: " << exc_text << "). " << std::endl;
+                std::cout << "PLMNID_to_ULong_Test #" << i + 1 << " FAILED (exception caught: " << exc.what() << "). " << std::endl;
                 success = false;
             }
         }
@@ -499,14 +499,14 @@ bool Utils::IPAddress_to_ULong_Test()
                 std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED. " << std::endl;
             }
         }
-        catch(const std::string& exc_text) {
+        catch(const std::runtime_error& exc) {
             if (correct_results[i] == exception_sign) {
                 std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " PASSED (exception caught: "
-                          << exc_text << "). " << std::endl;
+                          << exc.what() << "). " << std::endl;
             }
             else {
                 std::cout << "IPAddress_to_ULong_Test #" << i + 1 << " FAILED (exception caught: "
-                          << exc_text << ")." << std::endl;
+                          << exc.what() << ")." << std::endl;
                 success = false;
             }
         }
