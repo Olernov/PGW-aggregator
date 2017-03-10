@@ -1,7 +1,8 @@
 #include "Utils.h"
-#include "ExportRules.h"
 #include "LogWriter.h"
 #include "Config.h"
+#include "DBConnect.h"
+#include "ExportRules.h"
 
 extern Config config;
 extern LogWriter logWriter;
@@ -64,13 +65,12 @@ void ExportRules::RefreshIfNeeded()
 }
 
 
-bool ExportRules::IsReadyForExport(Session_ptr sessionPtr)
+bool ExportRules::IsReadyForExport(Session* session)
 {
     while (refreshInProgress) {
         std::this_thread::sleep_for(std::chrono::seconds(0));
     }
 
-    Session* session = sessionPtr.get();
     std::map<unsigned32, RatingGroupSetting>::iterator iter = ratingGroups.find(session->ratingGroup);
     double thresholdUplinkMb, thresholdDownlinkMb, thresholdUplinkMin, thresholdDownlinkMin ;
     if (iter != ratingGroups.end()) {

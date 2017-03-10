@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <thread>
 #include <mutex>
@@ -12,7 +13,7 @@
 #include "Session.h"
 #include "ExportRules.h"
 
-typedef std::multimap<unsigned32, Session_ptr> SessionMap;
+typedef std::unordered_multimap<unsigned32, Session_ptr> SessionMap;
 
 
 class Aggregator
@@ -27,6 +28,7 @@ public:
     void CheckExportedData(AggregationTestType);
     void SetStopFlag();
     void WakeUp();
+    void ProcessCDRQueue();
 private:
     static const int cdrQueueSize = 500;
     static const int mapSizeReportPeriodMin = 5;
@@ -46,10 +48,11 @@ private:
     time_t lastIdleSessionsEject;
     time_t lastMapSizeReport;
 
-    void CreateSessionsAndExport(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
+    void CreateSessions(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
     SessionMap::iterator CreateSession(const PGWRecord& pGWRecord,
                        unsigned32 ratingGroup, unsigned32 volumeUplink, unsigned32 volumeDownlink);
-    void ExportSession(Session_ptr sessionPtr);
+    //void ExportIfNeeded(Session_ptr sessionPtr);
+    //void ExportSession(Session_ptr sessionPtr);
     void ExportAllSessionsToDB();
     bool EjectOneIdleSession();
     void MapSizeReportIfNeeded();

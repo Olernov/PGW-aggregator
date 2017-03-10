@@ -3,7 +3,7 @@
 #include <thread>
 #include "Common.h"
 #include "Session.h"
-
+#include "DBConnect.h"
 
 struct RatingGroupSetting
 {
@@ -47,7 +47,7 @@ class ExportRules
 {
 public:
     ExportRules(DBConnect& conn, unsigned long refreshPeriodMin);
-    bool IsReadyForExport(Session_ptr sessionPtr);
+    bool IsReadyForExport(Session* session);
     void RefreshIfNeeded();
 private:
     static const unsigned32 defaultMegabytesHome = 10;

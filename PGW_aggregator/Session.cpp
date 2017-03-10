@@ -1,25 +1,29 @@
 #include "OTL_Header.h"
 #include "Utils.h"
+#include "ExportRules.h"
 #include "Session.h"
+#include "LogWriter.h"
 
 
 Session::Session(unsigned32 chargingID,
     unsigned64 iMSI,
     unsigned64 mSISDN,
     std::string iMEI,
-	std::string accessPointName,
+    std::string accessPointName,
     unsigned32 duration,
     unsigned32 servingNodeIP,
     unsigned32 servingNodePLMNID,
     unsigned32 ratingGroup,
     unsigned32 dataVolumeUplink,
     unsigned32 dataVolumeDownlink,
-    time_t cdrTime	) :
+    time_t cdrTime	,
+    ExportRules &er,
+    DBConnect &db) :
         chargingID(chargingID),
+        iMSI(iMSI),
         ratingGroup(ratingGroup),
         lastUpdateTime(time(nullptr)),
         lastExportTime(notInitialized),
-        iMSI(iMSI),
         mSISDN(mSISDN),
         iMEI(iMEI),
         accessPointName(accessPointName),
@@ -30,9 +34,13 @@ Session::Session(unsigned32 chargingID,
         volumeUplinkExported(0),
         volumeDownlinkExported(0),
         startTime(cdrTime),
-        endTime(cdrTime + duration)
-
-{}
+        endTime(cdrTime + duration),
+        tollFreeSign(false),
+        exportRules(er),
+        dbConnect(db)
+{
+    ExportIfNeeded();
+}
 
 
 void Session::UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownlinkIncrease,
@@ -47,45 +55,70 @@ void Session::UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownl
         endTime = newCdrTime + durationIncrease;
     }
     lastUpdateTime = time(nullptr);
+    ExportIfNeeded();
 }
 
 
-void Session::ExportToDB(DBConnect& dbConnect)
+void Session::ExportIfNeeded()
+{
+    if (!tollFreeSign) {
+        ForceExport();
+    }
+    else {
+        if (exportRules.IsReadyForExport(this)) {
+            ForceExport();
+        }
+    }
+}
+
+void Session::ForceExport()
 {
     if (HaveDataToExport()) {
-        otl_stream dbStream;
-        dbStream.open(1,
-                "call BILLING.MOBILE_DATA_CHARGER.ExportSession(:charging_id /*bigint*/, :imsi /*bigint*/, :msisdn /*bigint*/, "
-                ":imei /*char[20]*/, :access_point_name /*char[64]*/, :start_time<timestamp>, :end_time<timestamp>,"
-                ":serving_node_ip /*long*/, :plmn_id /*long*/, "
-                ":rating_group /*long*/, :data_volume_uplink /*bigint*/, :data_volume_downlink /*bigint*/)",
-                dbConnect);
-            // WARNING: OTL library does not support unsigned long and unsigned long long datatypes
-            // for Oracle versions lower than ORA_R11_G2, so we cast to signed64 type.
-            // Long long (64-bit) type has range from -9 223 372 036 854 775 808 to 9 223 372 036 854 775 807,
-            // (19 digits) so this should be enough to store IMSI and MSISDN.
-            dbStream
-                    << static_cast<signed64>(chargingID)
-                    << static_cast<signed64>(iMSI)
-                    << static_cast<signed64>(mSISDN)
-                    << iMEI
-                    << accessPointName
-                    << Utils::Time_t_to_OTL_datetime(startTime)
-                    << Utils::Time_t_to_OTL_datetime(endTime)
-                    << static_cast<long>(servingNodeIP)
-                    << static_cast<long>(servingNodePLMNID)
-                    << static_cast<long>(ratingGroup)
-                    << static_cast<signed64>(volumeUplinkAggregated)
-                    << static_cast<signed64>(volumeDownlinkAggregated);
-        dbStream.close();
+        try {
+            otl_stream dbStream;
+            dbStream.open(1,
+                    "call BILLING.MOBILE_DATA_CHARGER.ExportSession(:charging_id /*bigint,in*/, :imsi /*bigint,in*/, :msisdn /*bigint,in*/, "
+                    ":imei /*char[20],in*/, :access_point_name /*char[64],in*/, :start_time /*timestamp,in*/, :end_time /*timestamp,in*/,"
+                    ":serving_node_ip /*long,in*/, :plmn_id /*long,in*/, "
+                    ":rating_group /*long,in*/, :data_volume_uplink /*bigint,in*/, :data_volume_downlink /*bigint,in*/) "
+                    " into :rate /*double,out*/",
+                    dbConnect);
+                // WARNING: OTL library does not support unsigned long and unsigned long long datatypes
+                // for Oracle versions lower than ORA_R11_G2, so we cast to signed64 type.
+                // Long long (64-bit) type has range from -9 223 372 036 854 775 808 to 9 223 372 036 854 775 807,
+                // (19 digits) so this should be enough to store IMSI and MSISDN.
+                dbStream
+                        << static_cast<signed64>(chargingID)
+                        << static_cast<signed64>(iMSI)
+                        << static_cast<signed64>(mSISDN)
+                        << iMEI
+                        << accessPointName
+                        << Utils::Time_t_to_OTL_datetime(startTime)
+                        << Utils::Time_t_to_OTL_datetime(endTime)
+                        << static_cast<long>(servingNodeIP)
+                        << static_cast<long>(servingNodePLMNID)
+                        << static_cast<long>(ratingGroup)
+                        << static_cast<signed64>(volumeUplinkAggregated)
+                        << static_cast<signed64>(volumeDownlinkAggregated);
+                double rate = 0;
+                dbStream >> rate;
+            dbStream.close();
 
-        volumeUplinkExported += volumeUplinkAggregated;
-        volumeUplinkAggregated = 0;
-        volumeDownlinkExported += volumeDownlinkAggregated;
-        volumeDownlinkAggregated = 0;
-        startTime = notInitialized;
-        endTime = notInitialized;
-        lastExportTime = time(nullptr);
+            volumeUplinkExported += volumeUplinkAggregated;
+            volumeUplinkAggregated = 0;
+            volumeDownlinkExported += volumeDownlinkAggregated;
+            volumeDownlinkAggregated = 0;
+            startTime = notInitialized;
+            endTime = notInitialized;
+            lastExportTime = time(nullptr);
+            tollFreeSign = rate < tollFreeBound;
+
+        }
+        catch(const otl_exception& ex) {
+            std::string excText = "**** DB ERROR while exporting charging ID " + std::to_string(chargingID) + " ****"
+                            + crlf + Utils::OtlExceptionToText(ex) + crlf + SessionDataDump();
+            throw std::runtime_error(excText);
+        }
     }
 }
 
