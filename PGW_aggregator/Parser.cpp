@@ -52,15 +52,15 @@ void Parser::ProcessFile(const filesystem::path& file)
     time(&processStartTime);
     try {
         auto totals = ParseFile(pgwFile, file.string());
+        long processTimeSec = Utils::DiffMinutes(processStartTime, time(nullptr)) * 60;
+        logWriter << "File " + file.filename().string() + " processed in " +
+                     std::to_string(processTimeSec) + " sec.";
+        RegisterFileStats(file.filename().string(), totals, processTimeSec, filesystem::last_write_time(file));
         if (!cdrArchiveDirectory.empty()) {
             filesystem::path archivePath(cdrArchiveDirectory);
             filesystem::path archiveFilename = archivePath / file.filename();
             filesystem::rename(file, archiveFilename);
         }
-        long processTimeSec = Utils::DiffMinutes(processStartTime, time(nullptr)) * 60;
-        logWriter << "File " + file.filename().string() + " processed in " +
-                     std::to_string(processTimeSec) + " sec.";
-        RegisterFileStats(file.filename().string(), totals, processTimeSec);
     }
     catch(const std::exception& ex) {
         logWriter.Write("ERROR while ProcessFile:", mainThreadIndex, error);
@@ -175,7 +175,7 @@ bool Parser::ChargingAllowed()
     return res > 0;
 }
 
-void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec)
+void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec, time_t fileTimestamp)
 {
     int attemptCount = 0;
     while (attemptCount++ < maxAttemptsToWriteToDB) {
@@ -183,7 +183,8 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
             otl_stream dbStream;
             dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
                           ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/, "
-                          ":earliest_time/*timestamp*/, :latest_time/*timestamp*/, :process_time /*long*/)", dbConnect);
+                          ":earliest_time/*timestamp*/, :latest_time/*timestamp*/, :file_timestamp/*timestamp*/, "
+                          ":process_time /*long*/)", dbConnect);
             dbStream
                     << filename
                     << static_cast<signed64>(totals.volumeUplink)
@@ -191,6 +192,7 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
                     << static_cast<long>(totals.recordCount)
                     << Utils::Time_t_to_OTL_datetime(totals.earliestTime)
                     << Utils::Time_t_to_OTL_datetime(totals.latestTime)
+                    << Utils::Time_t_to_OTL_datetime(fileTimestamp)
                     << processTimeSec;
             dbStream.close();
             break;
