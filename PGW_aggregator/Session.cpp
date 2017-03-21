@@ -4,6 +4,8 @@
 #include "Session.h"
 #include "LogWriter.h"
 
+extern LogWriter logWriter;
+
 
 Session::Session(unsigned32 chargingID,
     unsigned64 iMSI,
@@ -115,9 +117,10 @@ void Session::ForceExport()
 
         }
         catch(const otl_exception& ex) {
-            std::string excText = "**** DB ERROR while exporting charging ID " + std::to_string(chargingID) + " ****"
-                            + crlf + Utils::OtlExceptionToText(ex) + crlf + SessionDataDump();
-            throw std::runtime_error(excText);
+            logWriter << "**** DB ERROR while exporting chargingID " + std::to_string(chargingID) + " ****"
+                         + crlf + Utils::OtlExceptionToText(ex) + crlf + SessionDataDump();
+            throw std::runtime_error("**** DB ERROR while exporting ****"
+                                     + crlf + Utils::OtlExceptionToText(ex));
         }
     }
 }

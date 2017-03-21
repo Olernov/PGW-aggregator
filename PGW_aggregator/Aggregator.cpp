@@ -85,12 +85,12 @@ void Aggregator::ProcessCDRQueue()
     }
     catch(const std::runtime_error& ex) {
         // exception is rethrown from Session.
-        logWriter.Write(ex.what(), thisIndex);
+        exceptionText = ex.what();
+        logWriter.Write(exceptionText, thisIndex);
         dbConnect.reconnect();
-        SendAlertIfNeeded(ex.what());
+        SendAlertIfNeeded(exceptionText);
     }
 }
-
 
 
 void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
@@ -152,24 +152,6 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
            exportRules,
            dbConnect))));
 }
-
-
-//void Aggregator::ExportIfNeeded(Session_ptr sessionPtr)
-//{
-//    if (exportRules.IsReadyForExport(sessionPtr)) {
-//        ExportSession(sessionPtr);
-//    }
-//}
-
-
-//void Aggregator::ExportSession(Session_ptr sessionPtr)
-//{
-//    try {
-//        sessionPtr.get()->ExportIfNeeded(dbConnect);
-//        exceptionText.clear();
-//    }
-
-//}
 
 
 void Aggregator::ExportAllSessionsToDB()
