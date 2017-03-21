@@ -50,32 +50,35 @@ void Parser::ProcessFile(const filesystem::path& file)
     logWriter << "Processing file " + file.filename().string() + "...";
     time_t processStartTime;
     time(&processStartTime);
+    bool parseError = false;
+    CdrFileTotals totals;
     try {
-        auto totals = ParseFile(pgwFile, file.string());
-        long processTimeSec = Utils::DiffMinutes(processStartTime, time(nullptr)) * 60;
-        logWriter << "File " + file.filename().string() + " processed in " +
-                     std::to_string(processTimeSec) + " sec.";
-        RegisterFileStats(file.filename().string(), totals, processTimeSec, filesystem::last_write_time(file));
-        if (!cdrArchiveDirectory.empty()) {
-            filesystem::path archivePath(cdrArchiveDirectory);
-            filesystem::path archiveFilename = archivePath / file.filename();
-            filesystem::rename(file, archiveFilename);
-        }
+        ParseFile(pgwFile, file.string(), totals);
     }
     catch(const std::exception& ex) {
         logWriter.Write("ERROR while ProcessFile:", mainThreadIndex, error);
         logWriter.Write(ex.what(), mainThreadIndex, error);
-        if (!cdrBadDirectory.empty()) {
-            filesystem::path badFilePath(cdrBadDirectory);
-            filesystem::path badFilename = badFilePath / file.filename();
-            filesystem::rename(file, badFilename);
-            logWriter << "File " + file.filename().string() + " moved to bad files directory " + cdrBadDirectory;
-        }
+        parseError = true;
+    }
+    long processTimeSec = Utils::DiffMinutes(processStartTime, time(nullptr)) * 60;
+    logWriter << "File " + file.filename().string() + " processed in " +
+                 std::to_string(processTimeSec) + " sec.";
+    RegisterFileStats(file.filename().string(), totals, processTimeSec, filesystem::last_write_time(file), parseError);
+    if (!parseError && !cdrArchiveDirectory.empty()) {
+        filesystem::path archivePath(cdrArchiveDirectory);
+        filesystem::path archiveFilename = archivePath / file.filename();
+        filesystem::rename(file, archiveFilename);
+    }
+    else if (parseError && !cdrBadDirectory.empty()) {
+        filesystem::path badFilePath(cdrBadDirectory);
+        filesystem::path badFilename = badFilePath / file.filename();
+        filesystem::rename(file, badFilename);
+        logWriter << "File " + file.filename().string() + " moved to bad files directory " + cdrBadDirectory;
     }
 }
 
 
-CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
+void Parser::ParseFile(FILE *pgwFile, const std::string& filename, CdrFileTotals& totals)
 {
     fseek(pgwFile, 0, SEEK_END);
     unsigned32 pgwFileLen = ftell(pgwFile);
@@ -95,8 +98,7 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
     asn_dec_rval_t rval;
     unsigned32 nextChunk = 0;
     unsigned32 recordCount = 0;
-    const int maxPGWRecordSize = 2000;
-    CdrFileTotals totals;
+    const int maxPGWRecordSize = 5000;
     while(nextChunk < bytesRead) {
         GPRSRecord* gprsRecord = nullptr;
         rval = ber_decode(0, &asn_DEF_GPRSRecord, (void**) &gprsRecord, buffer.get() + nextChunk, maxPGWRecordSize);
@@ -125,7 +127,6 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
     if (fileContents) {
         fclose(fileContents);
     }
-    return totals;
 }
 
 
@@ -175,7 +176,8 @@ bool Parser::ChargingAllowed()
     return res > 0;
 }
 
-void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec, time_t fileTimestamp)
+void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec,
+                               time_t fileTimestamp, bool parseError)
 {
     int attemptCount = 0;
     while (attemptCount++ < maxAttemptsToWriteToDB) {
@@ -184,7 +186,7 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
             dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
                           ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/, "
                           ":earliest_time/*timestamp*/, :latest_time/*timestamp*/, :file_timestamp/*timestamp*/, "
-                          ":process_time /*long*/)", dbConnect);
+                          ":process_time /*long*/, :parse_error /*long*/)", dbConnect);
             dbStream
                     << filename
                     << static_cast<signed64>(totals.volumeUplink)
@@ -193,7 +195,8 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
                     << Utils::Time_t_to_OTL_datetime(totals.earliestTime)
                     << Utils::Time_t_to_OTL_datetime(totals.latestTime)
                     << Utils::Time_t_to_OTL_datetime(fileTimestamp)
-                    << processTimeSec;
+                    << processTimeSec
+                    << (parseError ? 1L : 0L);
             dbStream.close();
             break;
         }

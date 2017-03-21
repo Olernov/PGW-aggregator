@@ -55,11 +55,12 @@ private:
     bool stopFlag;
     time_t lastAlertTime;
 
-    CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
+    void ParseFile(FILE *pgwFile, const std::string& filename, CdrFileTotals &totals);
     Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool ChargingAllowed();
     void AccumulateStats(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);
-    void RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec, time_t fileTime);
+    void RegisterFileStats(const std::string& filename, CdrFileTotals totals, long processTimeSec,
+                           time_t fileTime, bool parseErrors);
     void AlertAggregatorExceptions();
 };
 
