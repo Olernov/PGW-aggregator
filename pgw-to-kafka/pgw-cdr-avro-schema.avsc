@@ -1,0 +1,17 @@
+{"namespace": "ru.tenet.avro.schema.pgw",
+ "type": "record",
+ "name": "PGW_CDR",
+ "fields": [
+     {"name": "IMSI", "type": "long"},
+     {"name": "MSISDN",  "type": "long"},
+     {"name": "IMEI",  "type": "string"},
+	{"name": "PGWNodeExportTime", "type": "long", "logicalType": "timestamp-millis"},
+     {"name": "RatingGroup", "type": "int"},
+	{"name": "VolumeUplink", "type": "long"},
+	{"name": "VolumeDownlink", "type": "long"},
+     {"name": "ChargingID", "type": "int"},
+     {"name": "SequenceNumber", "type": "int"},
+     {"name": "Duration", "type": "int"},
+     {"name": "UserLocationInfo", "type": "bytes"}
+ ]
+}
