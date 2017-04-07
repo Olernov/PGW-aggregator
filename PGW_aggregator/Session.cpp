@@ -1,5 +1,6 @@
 #include "OTL_Header.h"
 #include "Utils.h"
+#include "otl_utils.h"
 #include "ExportRules.h"
 #include "Session.h"
 #include "LogWriter.h"
@@ -95,8 +96,8 @@ void Session::ForceExport()
                         << static_cast<signed64>(mSISDN)
                         << iMEI
                         << accessPointName
-                        << Utils::Time_t_to_OTL_datetime(startTime)
-                        << Utils::Time_t_to_OTL_datetime(endTime)
+                        << OTL_Utils::Time_t_to_OTL_datetime(startTime)
+                        << OTL_Utils::Time_t_to_OTL_datetime(endTime)
                         << static_cast<long>(servingNodeIP)
                         << static_cast<long>(servingNodePLMNID)
                         << static_cast<long>(ratingGroup)
@@ -118,9 +119,9 @@ void Session::ForceExport()
         }
         catch(const otl_exception& ex) {
             logWriter << "**** DB ERROR while exporting chargingID " + std::to_string(chargingID) + " ****"
-                         + crlf + Utils::OtlExceptionToText(ex) + crlf + SessionDataDump();
+                         + crlf + OTL_Utils::OtlExceptionToText(ex) + crlf + SessionDataDump();
             throw std::runtime_error("**** DB ERROR while exporting ****"
-                                     + crlf + Utils::OtlExceptionToText(ex));
+                                     + crlf + OTL_Utils::OtlExceptionToText(ex));
         }
     }
 }

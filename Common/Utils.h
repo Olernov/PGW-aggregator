@@ -5,7 +5,6 @@
 #include "IPAddress.h"
 #include "PLMN-Id.h"
 #include "TimeStamp.h"
-#include "OTL_Header.h"
 #include "PGWRecord.h"
 #include "Common.h"
 
@@ -20,11 +19,11 @@ class Utils
 	static unsigned32 PLMNID_to_ULong(const PLMN_Id_t* pPLMNID);
 	static time_t Timestamp_to_time_t(const TimeStamp_t* pTimestamp);
     static std::string Time_t_to_String(time_t timeT);
-    static otl_datetime Time_t_to_OTL_datetime(time_t timeT);
+
     static inline double DiffMinutes(time_t start, time_t end)
         { return (end > start ? static_cast<double>(end - start) / 60 : static_cast<double>(start - end) / 60); }
     static std::map<unsigned32, DataVolumes> SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord);
-    static std::string OtlExceptionToText(const otl_exception &otlEx);
+
 	static bool RunAllTests();
 private:
     static char DecodeTbcdDigit(uint8_t digit);

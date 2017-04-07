@@ -5,6 +5,7 @@
 #include "LogWriter.h"
 #include "Config.h"
 #include "rdkafkacpp.h"
+#include "pgw_cdr_avro.hh"
 
 
 extern Config config;
@@ -97,7 +98,9 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
         nextChunk += rval.consumed;
         if (gprsRecord->present == GPRSRecord_PR_pGWRecord && gprsRecord->choice.pGWRecord.servedIMSI &&
                 gprsRecord->choice.pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
+            SendRecordToKafka(gprsRecord->choice.pGWRecord);
             AccumulateStats(totals, gprsRecord->choice.pGWRecord);
+
 //            auto& aggr = GetAppropiateAggregator(gprsRecord);
 //            aggr.AddCdrToQueue(gprsRecord);
 //            aggr.WakeUp();
@@ -109,6 +112,25 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
         fclose(fileContents);
     }
     return totals;
+}
+
+
+void Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
+{
+    std::auto_ptr<avro::OutputStream> out = avro::memoryOutputStream();
+    avro::EncoderPtr encoder = avro::binaryEncoder();
+    encoder->init(*out);
+    PGW_CDR avroCdr;
+    avroCdr.IMSI = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
+    avro::encode(*encoder, avroCdr);
+
+    std::auto_ptr<avro::InputStream> in = avro::memoryInputStream(*out);
+    avro::DecoderPtr decoder = avro::binaryDecoder();
+    decoder->init(*in);
+
+    PGW_CDR avroCdr2;
+    avro::decode(*decoder, avroCdr2);
+    //std::cout << '(' << c2.re << ", " << c2.im << ')' << std::endl;
 }
 
 

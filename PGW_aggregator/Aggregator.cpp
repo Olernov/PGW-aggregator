@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Aggregator.h"
 #include "Utils.h"
+#include "otl_utils.h"
 #include "Common.h"
 #include "LogWriter.h"
 #include "Config.h"
@@ -46,7 +47,7 @@ void Aggregator::AggregatorThreadFunc()
         dbConnect.rlogon(connectString.c_str());
     }
     catch(const otl_exception& ex) {
-        SendAlertIfNeeded(Utils::OtlExceptionToText(ex));
+        SendAlertIfNeeded(OTL_Utils::OtlExceptionToText(ex));
         logWriter.Write("**** DB ERROR while logging to DB: **** " +
             crlf + exceptionText, thisIndex);
     }

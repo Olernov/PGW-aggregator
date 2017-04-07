@@ -1,7 +1,5 @@
 #pragma once
 #include <map>
-#include "OTL_Header.h"
-
 
 typedef unsigned long unsigned32;
 typedef unsigned long long unsigned64;

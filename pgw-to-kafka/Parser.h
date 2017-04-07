@@ -57,6 +57,7 @@ private:
     CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
     //Aggregator& GetAppropiateAggregator(const GPRSRecord*);
     bool ChargingAllowed();
+    void SendRecordToKafka(const PGWRecord& pGWRecord);
     void AccumulateStats(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);
     void RegisterFileStats(const std::string& filename, CdrFileTotals totals);
     //void AlertAggregatorExceptions();

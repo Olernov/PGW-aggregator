@@ -1,5 +1,6 @@
 #include <memory>
 #include "Utils.h"
+#include "otl_utils.h"
 #include "Parser.h"
 #include "GPRSRecord.h"
 #include "LogWriter.h"
@@ -192,9 +193,9 @@ void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals
                     << static_cast<signed64>(totals.volumeUplink)
                     << static_cast<signed64>(totals.volumeDownlink)
                     << static_cast<long>(totals.recordCount)
-                    << Utils::Time_t_to_OTL_datetime(totals.earliestTime)
-                    << Utils::Time_t_to_OTL_datetime(totals.latestTime)
-                    << Utils::Time_t_to_OTL_datetime(fileTimestamp)
+                    << OTL_Utils::Time_t_to_OTL_datetime(totals.earliestTime)
+                    << OTL_Utils::Time_t_to_OTL_datetime(totals.latestTime)
+                    << OTL_Utils::Time_t_to_OTL_datetime(fileTimestamp)
                     << processTimeSec
                     << (parseError ? 1L : 0L);
             dbStream.close();

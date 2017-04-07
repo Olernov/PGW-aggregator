@@ -3,6 +3,7 @@
 #include "GPRSRecord.h"
 #include "OTL_Header.h"
 #include "DBConnect.h"
+#include "otl_utils.h"
 #include "Utils.h"
 #include "Session.h"
 #include "Common.h"
@@ -131,7 +132,7 @@ int main(int argc, const char* argv[])
 		dbConnect.logoff();
 	}
     catch(otl_exception& ex) {
-        std::string errMessage = Utils::OtlExceptionToText(ex);
+        std::string errMessage = OTL_Utils::OtlExceptionToText(ex);
         std::cerr << errMessage << std::endl;
         logWriter.Write(errMessage, mainThreadIndex, error);
     }
