@@ -4,24 +4,72 @@
 #include "GPRSRecord.h"
 #include "LogWriter.h"
 #include "Config.h"
-#include "rdkafkacpp.h"
-#include "pgw_cdr_avro.hh"
 
 
 extern Config config;
 extern LogWriter logWriter;
 
 
-Parser::Parser(const std::string &connectString, const std::string &filesDirectory, const std::string &extension,
+KafkaEventCallback::KafkaEventCallback() :
+    allBrokersDown(false)
+{}
+
+void KafkaEventCallback::event_cb (RdKafka::Event &event)
+{
+    switch (event.type())
+    {
+      case RdKafka::Event::EVENT_ERROR:
+        logWriter << "Kafka ERROR (" + RdKafka::err2str(event.err()) + "): " + event.str();
+        if (event.err() == RdKafka::ERR__ALL_BROKERS_DOWN)
+            allBrokersDown = true;
+        break;
+      case RdKafka::Event::EVENT_STATS:
+        logWriter << "Kafka STATS: " + event.str();
+        break;
+      case RdKafka::Event::EVENT_LOG:
+        logWriter << "Kafka LOG-" + std::to_string(event.severity()) + "-" + event.fac() + ":" + event.str();
+        break;
+      default:
+        logWriter << "Kafka EVENT " + std::to_string(event.type()) + " (" +
+                     RdKafka::err2str(event.err()) + "): " + event.str();
+        break;
+    }
+}
+
+
+void KafkaDeliveryReportCallback::dr_cb (RdKafka::Message &message)
+{
+    std::cout << "Message delivery for (" << message.len() << " bytes): " <<
+        message.errstr() << std::endl;
+    if (message.key())
+      std::cout << "Key: " << *(message.key()) << ";" << std::endl;
+}
+
+
+Parser::Parser(const std::string &kafkaBroker, const std::string &kafkaTopic, const std::string &filesDirectory, const std::string &extension,
                const std::string &archDirectory, const std::string &badDirectory) :
+    kafkaTopic(kafkaTopic),
     cdrArchiveDirectory(archDirectory),
     cdrBadDirectory(badDirectory),
-    stopFlag(false),
-    shutdownFilePath(filesDirectory + "/" + shutdownFlagFilename),
     printFileContents(false),
+    stopFlag(false),
     lastAlertTime(notInitialized)
 {
+    kafkaGlobalConf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
+    kafkaTopicConf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
+    std::string errstr;
+    if (kafkaGlobalConf->set("metadata.broker.list", kafkaBroker, errstr) != RdKafka::Conf::CONF_OK) {
+        throw std::runtime_error("Failed to set kafka glocal conf: " + errstr);
+    }
+    //kafkaGlobalConf->set("dr_cb", &deliveryReportCb, errstr);
+    kafkaGlobalConf->set("event_cb", &eventCb, errstr);
+
+    kafkaProducer = RdKafka::Producer::create(kafkaGlobalConf, errstr);
+    if (!kafkaProducer) {
+        throw std::runtime_error("Failed to create kafka producer: " + errstr);
+    }
 }
+
 
 bool Parser::IsReady()
 {
@@ -38,14 +86,13 @@ void Parser::ProcessFile(const filesystem::path& file)
     }
     logWriter << "Processing file " + file.filename().string() + "...";
     try {
-        auto totals = ParseFile(pgwFile, file.string());
+        ParseFile(pgwFile, file.string());
         if (!cdrArchiveDirectory.empty()) {
             filesystem::path archivePath(cdrArchiveDirectory);
             filesystem::path archiveFilename = archivePath / file.filename();
             filesystem::rename(file, archiveFilename);
         }
         logWriter << "File " + file.filename().string() + " processed.";
-        RegisterFileStats(file.filename().string(), totals);
     }
     catch(const std::exception& ex) {
         logWriter.Write("ERROR while ProcessFile:", mainThreadIndex, error);
@@ -60,7 +107,7 @@ void Parser::ProcessFile(const filesystem::path& file)
 }
 
 
-CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
+void Parser::ParseFile(FILE *pgwFile, const std::string& filename)
 {
     fseek(pgwFile, 0, SEEK_END);
     unsigned32 pgwFileLen = ftell(pgwFile);
@@ -89,7 +136,6 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
             if (fileContents) {
                 fclose(fileContents);
             }
-            //TODO: unhandled exceptions
             throw std::invalid_argument("Error while decoding ASN file. Error code " + std::to_string(rval.code));
         }
         if (printFileContents && fileContents != NULL) {
@@ -97,13 +143,10 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
         }
         nextChunk += rval.consumed;
         if (gprsRecord->present == GPRSRecord_PR_pGWRecord && gprsRecord->choice.pGWRecord.servedIMSI &&
-                gprsRecord->choice.pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
+                gprsRecord->choice.pGWRecord.listOfServiceData) {
+            // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
+            WaitForKafkaQueue();
             SendRecordToKafka(gprsRecord->choice.pGWRecord);
-            AccumulateStats(totals, gprsRecord->choice.pGWRecord);
-
-//            auto& aggr = GetAppropiateAggregator(gprsRecord);
-//            aggr.AddCdrToQueue(gprsRecord);
-//            aggr.WakeUp();
         }
         ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
         recordCount++;
@@ -111,88 +154,68 @@ CdrFileTotals Parser::ParseFile(FILE *pgwFile, const std::string& filename)
     if (fileContents) {
         fclose(fileContents);
     }
-    return totals;
 }
 
+
+void Parser::WaitForKafkaQueue()
+{
+    while (kafkaProducer->outq_len() >= queueSizeThreshold)   {
+        std::string message = std::to_string(kafkaProducer->outq_len()) + " message(s) are in Kafka producer queue. "
+                "Waiting to be sent...";
+        if (message != lastErrorMessage) {
+            logWriter << message;
+            lastErrorMessage = message;
+        }
+        kafkaProducer->poll(producerPollTimeoutMs);
+    }
+}
 
 void Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
 {
-    std::auto_ptr<avro::OutputStream> out = avro::memoryOutputStream();
-    avro::EncoderPtr encoder = avro::binaryEncoder();
-    encoder->init(*out);
-    PGW_CDR avroCdr;
-    avroCdr.IMSI = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
-    avro::encode(*encoder, avroCdr);
 
-    std::auto_ptr<avro::InputStream> in = avro::memoryInputStream(*out);
-    avro::DecoderPtr decoder = avro::binaryDecoder();
-    decoder->init(*in);
+    for (int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
+        PGW_CDR avroCdr;
+        avroCdr.IMSI = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
+        avroCdr.MSISDN = Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN);
+        avroCdr.IMEI.set_string(Utils::TBCDString_to_String(pGWRecord.servedIMEISV));
+        avroCdr.PGWNodeExportTime = Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime) * 1000, // milliseconds
+        avroCdr.RatingGroup = pGWRecord.listOfServiceData->list.array[i]->ratingGroup;
+        if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink) {
+            avroCdr.VolumeUplink = *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
+        }
+        if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink) {
+            avroCdr.VolumeDownlink = *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
+        }
+        avroCdr.ChargingID = pGWRecord.chargingID;
+        if (pGWRecord.recordSequenceNumber) {
+            avroCdr.SequenceNumber.set_int(*pGWRecord.recordSequenceNumber);
+        }
+        avroCdr.Duration = pGWRecord.duration;
+        int locInfoSize = pGWRecord.userLocationInformation->size;
+        avroCdr.UserLocationInfo.resize(locInfoSize);
+        std::copy(&pGWRecord.userLocationInformation->buf[0], &pGWRecord.userLocationInformation->buf[locInfoSize],
+                avroCdr.UserLocationInfo.begin());
+        std::unique_ptr<avro::OutputStream> out(avro::memoryOutputStream());
+        avro::EncoderPtr encoder(avro::binaryEncoder());
+        encoder->init(*out);
+        avro::encode(*encoder, avroCdr);
+        encoder->flush();
+        size_t byteCount = out->byteCount();
+        std::auto_ptr<avro::InputStream> in = avro::memoryInputStream(*out);
+        avro::StreamReader reader(*in);
+        std::vector<uint8_t> rawData(byteCount);
+        reader.readBytes(&rawData[0], byteCount);
 
-    PGW_CDR avroCdr2;
-    avro::decode(*decoder, avroCdr2);
+        RdKafka::ErrorCode resp =
+            kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
+                                   rawData.data(), byteCount, nullptr, 0, 0, nullptr);
+        if (resp != RdKafka::ERR_NO_ERROR) {
+            // TODO: log and process error
+            logWriter << "Kafka produce failed: " + RdKafka::err2str(resp);
+        }
+        kafkaProducer->poll(0);
+    }
     //std::cout << '(' << c2.re << ", " << c2.im << ')' << std::endl;
-}
-
-
-void Parser::AccumulateStats(CdrFileTotals& totals, const PGWRecord& pGWRecord)
-{
-    for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
-        totals.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
-        totals.volumeDownlink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
-    }
-    totals.recordCount++;
-    time_t cdrTime = Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime);
-    if (totals.earliestTime == notInitialized || cdrTime < totals.earliestTime) {
-        totals.earliestTime = cdrTime;
-    }
-    if (totals.latestTime == notInitialized || cdrTime > totals.latestTime) {
-        totals.latestTime = cdrTime;
-    }
-}
-
-
-void Parser::RegisterFileStats(const std::string& filename, CdrFileTotals totals)
-{
-//    int attemptCount = 0;
-//    while (attemptCount++ < maxAttemptsToWriteToDB) {
-//        try {
-//            otl_stream dbStream;
-//            dbStream.open(1, "call Billing.Mobile_Data_Charger.RegisterFileStats(:filename /*char[100]*/, "
-//                          ":vol_uplink/*bigint*/, :vol_downlink/*bigint*/, :rec_count/*long*/, "
-//                          ":earliest_time<timestamp>, :latest_time<timestamp> )", dbConnect);
-//            dbStream
-//                    << filename
-//                    << static_cast<signed64>(totals.volumeUplink)
-//                    << static_cast<signed64>(totals.volumeDownlink)
-//                    << static_cast<long>(totals.recordCount)
-//                    << Utils::Time_t_to_OTL_datetime(totals.earliestTime)
-//                    << Utils::Time_t_to_OTL_datetime(totals.latestTime) ;
-//            dbStream.close();
-//            break;
-//        }
-//        catch(const otl_exception& ex) {
-//            logWriter.LogOtlException("**** DB ERROR in main thread while RegisterFileStats: ****", ex, mainThreadIndex);
-//            dbConnect.reconnect();
-//        }
-//    }
-}
-
-
-bool Parser::SendMissingCdrAlert(double diffMinutes)
-{
-//    otl_stream dbStream;
-//    try {
-//        dbStream.open(1, std::string("call BILLING.MOBILE_DATA_CHARGER.SendAlert(:mess/*char[" +
-//                       std::to_string(maxAlertMessageLen) + "]*/)").c_str(), dbConnect);
-//        dbStream << std::string("New CDR files are missing for ") + std::to_string(diffMinutes) + " min.";
-//        dbStream.close();
-//        return true;
-//    }
-//    catch(const otl_exception& ex) {
-//        logWriter.LogOtlException("**** DB ERROR in main thread while SendMissingCdrAlert: ****", ex, mainThreadIndex);
-//        dbConnect.reconnect();
-//        return false;
-//    }
 }
 
 
@@ -202,4 +225,9 @@ void Parser::SetPrintContents(bool printContents)
 }
 
 
-
+Parser::~Parser()
+{
+    delete kafkaProducer;
+    delete kafkaGlobalConf;
+    delete kafkaTopicConf;
+}

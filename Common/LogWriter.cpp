@@ -3,12 +3,16 @@
 #include "LogWriter.h"
 
 
+LogWriter::LogWriter() 	:
+    messageQueue(queueSize),
+    m_stopFlag(false),
+    m_excPointer(nullptr)
+{
+}
+
+
 void LogWriter::SetLogStream(time_t messageTime)
 {
-    if (logToStdout) {
-        //m_logStream = std::cout;
-        return;
-    }
     tm messageTimeTm;
     localtime_r(&messageTime, &messageTimeTm);
 	char dateBuf[30];
@@ -64,18 +68,9 @@ void LogWriter::WriteThreadFunction()
 	}
 }
 
-LogWriter::LogWriter() 
-	: messageQueue(queueSize), 
-    logToStdout(true),
-	m_stopFlag(false),
-	m_excPointer(nullptr)
-{
-}
-
 
 bool LogWriter::Initialize(const std::string& logPath, LogLevel level)
 {
-    this->logToStdout = logPath.empty();
     m_logPath = logPath;
     logLevel = level;
 	time_t now;
@@ -88,7 +83,6 @@ bool LogWriter::Initialize(const std::string& logPath, LogLevel level)
 bool LogWriter::Write(LogMessage* message)
 {
 	try {
-        //LogMessage* pnewMessage = new LogMessage(message);
         if (!messageQueue.push(message))
 			throw LogWriterException("Unable to add message to log queue");
 	}

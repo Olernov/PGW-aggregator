@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include "LogWriter.h"
+#include "LogWriterOtl.h"
 
 struct Config
 {

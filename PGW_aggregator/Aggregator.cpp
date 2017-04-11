@@ -3,11 +3,11 @@
 #include "Utils.h"
 #include "otl_utils.h"
 #include "Common.h"
-#include "LogWriter.h"
+#include "LogWriterOtl.h"
 #include "Config.h"
 
 
-extern LogWriter logWriter;
+extern LogWriterOtl logWriter;
 
 std::mutex mutex;
 

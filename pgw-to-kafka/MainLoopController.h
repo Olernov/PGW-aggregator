@@ -4,7 +4,8 @@
 class MainLoopController
 {
 public:
-    MainLoopController(const std::string &connectString, const std::string &cdrFilesDirectory,
+    MainLoopController(const std::string &kafkaBroker, const std::string &kafkaTopic,
+                       const std::string &cdrFilesDirectory,
                        const std::string &cdrExtension, const std::string &archiveDirectory,
                        const std::string &cdrBadDirectory);
     void Run();
@@ -20,10 +21,6 @@ private:
 
     bool printFileContents;
     bool stopFlag;
-
-    const size_t maxAlertMessageLen = 2000;
-    std::string lastAlertMessage;
-    time_t lastAlertTime;
 
     bool IsShutdownFlagSet();
     void Sleep();

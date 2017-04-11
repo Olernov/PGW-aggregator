@@ -1,11 +1,11 @@
 #include "Utils.h"
-#include "LogWriter.h"
+#include "LogWriterOtl.h"
 #include "Config.h"
 #include "DBConnect.h"
 #include "ExportRules.h"
 
 extern Config config;
-extern LogWriter logWriter;
+extern LogWriterOtl logWriter;
 
 ExportRules::ExportRules(DBConnect &conn, unsigned long refreshPeriodMin) :
     refreshInProgress(false),

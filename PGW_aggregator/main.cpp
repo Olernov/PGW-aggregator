@@ -10,11 +10,11 @@
 #include "Aggregator.h"
 #include "MainLoopController.h"
 #include "ExportRules.h"
-#include "LogWriter.h"
+#include "LogWriterOtl.h"
 #include "Config.h"
 
 Config config;
-LogWriter logWriter;
+LogWriterOtl logWriter;
 
 void log(short msgType, std::string msgText)
 {

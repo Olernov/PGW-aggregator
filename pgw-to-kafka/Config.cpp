@@ -4,9 +4,10 @@
 using namespace boost;
 
 Config::Config() :
+    kafkaTopic("PGW_CDR"),
     cdrExtension(".dat"),
-    logLevel(notice),
-    noCdrAlertPeriodMin(15)
+    noCdrAlertPeriodMin(15),
+    logLevel(notice)
 {
 }
 
@@ -49,8 +50,11 @@ void Config::ReadConfigFile(std::ifstream& configStream)
 				option_value = option_value.substr(0, comment_pos);
 		}
 
-        if (option_name == connectStringParamName) {
-            connectString = option_value;
+        if (option_name == kafkaBrokerParamName) {
+            kafkaBroker = option_value;
+        }
+        else if (option_name == kafkaTopicParamName) {
+            kafkaTopic = option_value;
         }
         else if (option_name == inputDirParamName) {
             inputDir = option_value;
@@ -103,8 +107,8 @@ unsigned long Config::ParseULongValue(const std::string& name, const std::string
 
 void Config::ValidateParams()
 {
-    if (connectString.empty()) {
-        throw std::runtime_error(connectStringParamName + " parameter is not set.");
+    if (kafkaBroker.empty()) {
+        throw std::runtime_error(kafkaBrokerParamName + " parameter is not set.");
     }
     if (inputDir.empty()) {
         throw std::runtime_error(inputDirParamName + " parameter is not set.");
@@ -136,13 +140,13 @@ void Config::ValidateParams()
 
 std::string Config::DumpAllSettings()
 {
-    return connectStringParamName + ": " + connectString + crlf +
-           inputDirParamName + ": " + inputDir + crlf +
+    return  kafkaBrokerParamName + ": " + kafkaBroker + crlf +
+            kafkaTopicParamName + ": " + kafkaTopic + crlf +
+            inputDirParamName + ": " + inputDir + crlf +
             archiveDirParamName + ": " + archiveDir + crlf +
             badDirParamName + ": " + badDir + crlf +
             logDirParamName + ": " + logDir + crlf +
             cdrExtensionParamName + ": " + cdrExtension + crlf +
-            logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice")) + crlf +
-            noCdrAlertPeriodParamName + ": " + std::to_string(noCdrAlertPeriodMin);
+            logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice")) + crlf;
 }
 

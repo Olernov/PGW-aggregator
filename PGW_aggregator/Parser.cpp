@@ -3,12 +3,12 @@
 #include "otl_utils.h"
 #include "Parser.h"
 #include "GPRSRecord.h"
-#include "LogWriter.h"
+#include "LogWriterOtl.h"
 #include "Config.h"
 
 
 extern Config config;
-extern LogWriter logWriter;
+extern LogWriterOtl logWriter;
 
 
 Parser::Parser(const std::string &connectString, const std::string &filesDirectory, const std::string &extension,

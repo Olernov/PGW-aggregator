@@ -14,7 +14,8 @@ public:
     void ReadConfigFile(std::ifstream& cfgStream);
     void ValidateParams();
     std::string DumpAllSettings();
-    std::string connectString;
+    std::string kafkaBroker;
+    std::string kafkaTopic;
     std::string inputDir;
     std::string archiveDir;
     std::string badDir;
@@ -23,7 +24,8 @@ public:
     unsigned long noCdrAlertPeriodMin;
     LogLevel logLevel;
 private:
-    const std::string connectStringParamName = "CONNECT_STRING";
+    const std::string kafkaBrokerParamName = "KAFKA_BROKER";
+    const std::string kafkaTopicParamName = "KAFKA_TOPIC";
     const std::string inputDirParamName = "INPUT_DIR";
     const std::string archiveDirParamName = "ARCHIVE_DIR";
     const std::string badDirParamName = "BAD_DIR";

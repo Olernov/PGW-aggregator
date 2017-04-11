@@ -3,9 +3,9 @@
 #include "otl_utils.h"
 #include "ExportRules.h"
 #include "Session.h"
-#include "LogWriter.h"
+#include "LogWriterOtl.h"
 
-extern LogWriter logWriter;
+extern LogWriterOtl logWriter;
 
 
 Session::Session(unsigned32 chargingID,

@@ -66,8 +66,8 @@ int main(int argc, const char* argv[])
 
         // Common part both for tests and production
         {
-            MainLoopController mlc(config.connectString, config.inputDir, config.cdrExtension,
-                      config.archiveDir, config.badDir);
+            MainLoopController mlc(config.kafkaBroker, config.kafkaTopic, config.inputDir,
+                                   config.cdrExtension, config.archiveDir, config.badDir);
             mlc.Run();
         }
     }

@@ -4,13 +4,13 @@
  "fields": [
      {"name": "IMSI", "type": "long"},
      {"name": "MSISDN",  "type": "long"},
-     {"name": "IMEI",  "type": ["null", "string"]},
+     {"name": "IMEI",  "type": "string"},
 	 {"name": "PGWNodeExportTime", "type": "long", "logicalType": "timestamp-millis"},
      {"name": "RatingGroup", "type": "int"},
 	 {"name": "VolumeUplink", "type": "long"},
 	 {"name": "VolumeDownlink", "type": "long"},
-     {"name": "ChargingID", "type": "long"},
-     {"name": "SequenceNumber", "type": ["null", "int"]},
+     {"name": "ChargingID", "type": "int"},
+     {"name": "SequenceNumber", "type": "int"},
      {"name": "Duration", "type": "int"},
      {"name": "UserLocationInfo", "type": "bytes"}
  ]

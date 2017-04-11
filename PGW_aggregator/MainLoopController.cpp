@@ -1,10 +1,10 @@
 #include <boost/filesystem.hpp>
 #include "MainLoopController.h"
-#include "LogWriter.h"
+#include "LogWriterOtl.h"
 #include "Config.h"
 #include "Utils.h"
 
-extern LogWriter logWriter;
+extern LogWriterOtl logWriter;
 extern Config config;
 
 MainLoopController::MainLoopController(const std::string &connectString, const std::string &filesDirectory,

@@ -4,6 +4,8 @@
 #include <boost/filesystem.hpp>
 #include "Common.h"
 #include "GPRSRecord.h"
+#include "pgw_cdr_avro.hh"
+#include "rdkafkacpp.h"
 
 using namespace boost;
 
@@ -26,41 +28,59 @@ struct CdrFileTotals
 class parse_error : public std::logic_error {};
 
 
+class KafkaEventCallback : public RdKafka::EventCb
+{
+public:
+    KafkaEventCallback();
+    void event_cb (RdKafka::Event &event);
+private:
+    bool allBrokersDown;
+};
+
+
+class KafkaDeliveryReportCallback : public RdKafka::DeliveryReportCb
+{
+ public:
+  void dr_cb (RdKafka::Message &message);
+};
+
 
 class Parser
 {
 public:
-    Parser(const std::string &connectString, const std::string &cdrFilesDirectory, const std::string &cdrExtension,
+    Parser(const std::string &kafkaBroker, const std::string &kafkaTopic, const std::string &cdrFilesDirectory, const std::string &cdrExtension,
            const std::string &archiveDirectory, const std::string &cdrBadDirectory);
+    ~Parser();
     void ProcessFile(const filesystem::path& file);
-    //void RefreshExportRulesIfNeeded();
     void SetStopFlag() { stopFlag = true; }
 	void SetPrintContents(bool);
     bool IsReady();
     const std::string& GetPostponeReason() const { return postponeReason; }
     bool SendMissingCdrAlert(double diffMinutes);
+
 private:
+    std::string kafkaBroker;
+    std::string kafkaTopic;
     std::string cdrArchiveDirectory;
     std::string cdrBadDirectory;
-    const std::string shutdownFlagFilename = "pgw-aggregator.stop";
+    std::string postponeReason;
+    const int producerPollTimeoutMs = 1000;
+    const int queueSizeThreshold = 20;
     std::string shutdownFilePath;
-    //DBConnect dbConnect;
-    //std::vector<Aggregator_ptr> aggregators;
-    //ExportRules exportRules;
 
     bool printFileContents;
     bool stopFlag;
-    std::string lastExceptionText;
-    std::string postponeReason;
-    std::string lastAlertMessage;
+    std::string lastErrorMessage;
     time_t lastAlertTime;
-    CdrFileTotals ParseFile(FILE *pgwFile, const std::string& filename);
-    //Aggregator& GetAppropiateAggregator(const GPRSRecord*);
-    bool ChargingAllowed();
+    RdKafka::Conf *kafkaGlobalConf;
+    RdKafka::Conf *kafkaTopicConf;
+    RdKafka::Producer *kafkaProducer;
+    KafkaDeliveryReportCallback deliveryReportCb;
+    KafkaEventCallback eventCb;
+
+    void ParseFile(FILE *pgwFile, const std::string& filename);
+    void WaitForKafkaQueue();
     void SendRecordToKafka(const PGWRecord& pGWRecord);
-    void AccumulateStats(CdrFileTotals& totalVolumes, const PGWRecord& pGWRecord);
-    void RegisterFileStats(const std::string& filename, CdrFileTotals totals);
-    //void AlertAggregatorExceptions();
 };
 
 
