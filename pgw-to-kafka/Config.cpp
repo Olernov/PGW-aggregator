@@ -5,6 +5,7 @@ using namespace boost;
 
 Config::Config() :
     kafkaTopic("PGW_CDR"),
+    kafkaPartition(0),
     cdrExtension(".dat"),
     noCdrAlertPeriodMin(15),
     logLevel(notice)
@@ -55,6 +56,9 @@ void Config::ReadConfigFile(std::ifstream& configStream)
         }
         else if (option_name == kafkaTopicParamName) {
             kafkaTopic = option_value;
+        }
+        else if (option_name == kafkaPartitionParamName) {
+            kafkaPartition = ParseULongValue(option_name, option_value);
         }
         else if (option_name == inputDirParamName) {
             inputDir = option_value;
@@ -142,11 +146,14 @@ std::string Config::DumpAllSettings()
 {
     return  kafkaBrokerParamName + ": " + kafkaBroker + crlf +
             kafkaTopicParamName + ": " + kafkaTopic + crlf +
+            kafkaPartitionParamName + ": " + std::to_string(kafkaPartition) + crlf +
             inputDirParamName + ": " + inputDir + crlf +
             archiveDirParamName + ": " + archiveDir + crlf +
             badDirParamName + ": " + badDir + crlf +
             logDirParamName + ": " + logDir + crlf +
             cdrExtensionParamName + ": " + cdrExtension + crlf +
-            logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice")) + crlf;
+            logLevelParamName + ": " + (logLevel == error ? "error" :
+                                               (logLevel == debug ? "debug" : "notice")) + crlf +
+            noCdrAlertPeriodParamName + ": " + std::to_string(noCdrAlertPeriodMin) + crlf;
 }
 

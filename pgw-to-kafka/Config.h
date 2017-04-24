@@ -16,16 +16,18 @@ public:
     std::string DumpAllSettings();
     std::string kafkaBroker;
     std::string kafkaTopic;
+    unsigned32 kafkaPartition;
     std::string inputDir;
     std::string archiveDir;
     std::string badDir;
     std::string logDir;
     std::string cdrExtension;
-    unsigned long noCdrAlertPeriodMin;
+    unsigned32 noCdrAlertPeriodMin;
     LogLevel logLevel;
 private:
     const std::string kafkaBrokerParamName = "KAFKA_BROKER";
     const std::string kafkaTopicParamName = "KAFKA_TOPIC";
+    const std::string kafkaPartitionParamName = "KAFKA_PARTITION";
     const std::string inputDirParamName = "INPUT_DIR";
     const std::string archiveDirParamName = "ARCHIVE_DIR";
     const std::string badDirParamName = "BAD_DIR";

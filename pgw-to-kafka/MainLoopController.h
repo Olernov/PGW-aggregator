@@ -4,10 +4,11 @@
 class MainLoopController
 {
 public:
-    MainLoopController(const std::string &kafkaBroker, const std::string &kafkaTopic,
+    MainLoopController(const std::string &kafkaBroker, const std::string &kafkaTopic, unsigned32 kafkaPartition,
                        const std::string &cdrFilesDirectory,
                        const std::string &cdrExtension, const std::string &archiveDirectory,
-                       const std::string &cdrBadDirectory);
+                       const std::string &cdrBadDirectory,
+                       bool runTests);
     void Run();
     void SetPrintContents(bool printContents);
     ~MainLoopController();

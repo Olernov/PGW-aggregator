@@ -5,13 +5,14 @@
      {"name": "IMSI", "type": "long"},
      {"name": "MSISDN",  "type": "long"},
      {"name": "IMEI",  "type": ["null", "string"]},
-	 {"name": "PGWNodeExportTime", "type": "long", "logicalType": "timestamp-millis"},
+     {"name": "ServedPDPAddress",  "type": "long"},
+  {"name": "FirstUsageTime", "type": "long", "logicalType": "timestamp-millis"},
      {"name": "RatingGroup", "type": "int"},
-	 {"name": "VolumeUplink", "type": "long"},
-	 {"name": "VolumeDownlink", "type": "long"},
+  {"name": "VolumeUplink", "type": "long"},
+  {"name": "VolumeDownlink", "type": "long"},
      {"name": "ChargingID", "type": "long"},
-     {"name": "SequenceNumber", "type": ["null", "int"]},
-     {"name": "Duration", "type": "int"},
+     {"name": "SequenceNumber", "type": ["null","int"]},
+     {"name": "TimeOfUsage", "type": "int"},
      {"name": "UserLocationInfo", "type": "bytes"}
  ]
 }

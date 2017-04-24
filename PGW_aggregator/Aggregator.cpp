@@ -73,10 +73,14 @@ void Aggregator::ProcessCDRQueue()
         GPRSRecord* gprsRecord;
         if (cdrQueue.pop(gprsRecord)) {
             ProcessCDR(gprsRecord->choice.pGWRecord);
+            exceptionText.clear();
             ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
         }
         else {
-            if (!EjectOneIdleSession()) {
+            if (EjectOneIdleSession()) {
+                exceptionText.clear();
+            }
+            else {
                 logWriter.Write("CDR queue processed and nothing to eject. Sessions count: " + std::to_string(sessions.size()),
                                 thisIndex, debug);
                 std::unique_lock<std::mutex> lock(mutex);

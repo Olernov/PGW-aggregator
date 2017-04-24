@@ -7,9 +7,12 @@
 extern LogWriter logWriter;
 extern Config config;
 
-MainLoopController::MainLoopController(const std::string &kafkaBroker, const std::string &kafkaTopic, const std::string &filesDirectory,
-                                       const std::string &extension, const std::string &archDirectory, const std::string &badDirectory) :
-    parser(kafkaBroker, kafkaTopic, filesDirectory, extension, archDirectory, badDirectory),
+MainLoopController::MainLoopController(const std::string &kafkaBroker, const std::string &kafkaTopic,
+                                       unsigned32 kafkaPartition, const std::string &filesDirectory,
+                                       const std::string &extension, const std::string &archDirectory,
+                                       const std::string &badDirectory, bool runTest) :
+    parser(kafkaBroker, kafkaTopic, kafkaPartition, filesDirectory, extension,
+           archDirectory, badDirectory, runTest),
     cdrFilesDirectory(filesDirectory),
     cdrExtension(extension),
     shutdownFilePath(filesDirectory + "/" + shutdownFlagFilename),

@@ -69,27 +69,30 @@ struct PGW_CDR {
     int64_t IMSI;
     int64_t MSISDN;
     IMEI_t IMEI;
-    int64_t PGWNodeExportTime;
+    int64_t ServedPDPAddress;
+    int64_t FirstUsageTime;
     int32_t RatingGroup;
     int64_t VolumeUplink;
     int64_t VolumeDownlink;
     int64_t ChargingID;
     SequenceNumber_t SequenceNumber;
-    int32_t Duration;
+    int32_t TimeOfUsage;
     std::vector<uint8_t> UserLocationInfo;
     PGW_CDR() :
         IMSI(int64_t()),
         MSISDN(int64_t()),
         IMEI(IMEI_t()),
-        PGWNodeExportTime(int64_t()),
+        ServedPDPAddress(int64_t()),
+        FirstUsageTime(int64_t()),
         RatingGroup(int32_t()),
         VolumeUplink(int64_t()),
         VolumeDownlink(int64_t()),
         ChargingID(int64_t()),
         SequenceNumber(SequenceNumber_t()),
-        Duration(int32_t()),
+        TimeOfUsage(int32_t()),
         UserLocationInfo(std::vector<uint8_t>())
         { }
+
 };
 
 inline
@@ -190,13 +193,14 @@ template<> struct codec_traits<PGW_CDR> {
         avro::encode(e, v.IMSI);
         avro::encode(e, v.MSISDN);
         avro::encode(e, v.IMEI);
-        avro::encode(e, v.PGWNodeExportTime);
+        avro::encode(e, v.ServedPDPAddress);
+        avro::encode(e, v.FirstUsageTime);
         avro::encode(e, v.RatingGroup);
         avro::encode(e, v.VolumeUplink);
         avro::encode(e, v.VolumeDownlink);
         avro::encode(e, v.ChargingID);
         avro::encode(e, v.SequenceNumber);
-        avro::encode(e, v.Duration);
+        avro::encode(e, v.TimeOfUsage);
         avro::encode(e, v.UserLocationInfo);
     }
     static void decode(Decoder& d, PGW_CDR& v) {
@@ -216,27 +220,30 @@ template<> struct codec_traits<PGW_CDR> {
                     avro::decode(d, v.IMEI);
                     break;
                 case 3:
-                    avro::decode(d, v.PGWNodeExportTime);
+                    avro::decode(d, v.ServedPDPAddress);
                     break;
                 case 4:
-                    avro::decode(d, v.RatingGroup);
+                    avro::decode(d, v.FirstUsageTime);
                     break;
                 case 5:
-                    avro::decode(d, v.VolumeUplink);
+                    avro::decode(d, v.RatingGroup);
                     break;
                 case 6:
-                    avro::decode(d, v.VolumeDownlink);
+                    avro::decode(d, v.VolumeUplink);
                     break;
                 case 7:
-                    avro::decode(d, v.ChargingID);
+                    avro::decode(d, v.VolumeDownlink);
                     break;
                 case 8:
-                    avro::decode(d, v.SequenceNumber);
+                    avro::decode(d, v.ChargingID);
                     break;
                 case 9:
-                    avro::decode(d, v.Duration);
+                    avro::decode(d, v.SequenceNumber);
                     break;
                 case 10:
+                    avro::decode(d, v.TimeOfUsage);
+                    break;
+                case 11:
                     avro::decode(d, v.UserLocationInfo);
                     break;
                 default:
@@ -247,13 +254,14 @@ template<> struct codec_traits<PGW_CDR> {
             avro::decode(d, v.IMSI);
             avro::decode(d, v.MSISDN);
             avro::decode(d, v.IMEI);
-            avro::decode(d, v.PGWNodeExportTime);
+            avro::decode(d, v.ServedPDPAddress);
+            avro::decode(d, v.FirstUsageTime);
             avro::decode(d, v.RatingGroup);
             avro::decode(d, v.VolumeUplink);
             avro::decode(d, v.VolumeDownlink);
             avro::decode(d, v.ChargingID);
             avro::decode(d, v.SequenceNumber);
-            avro::decode(d, v.Duration);
+            avro::decode(d, v.TimeOfUsage);
             avro::decode(d, v.UserLocationInfo);
         }
     }
