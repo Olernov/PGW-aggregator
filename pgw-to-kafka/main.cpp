@@ -62,11 +62,13 @@ int main(int argc, const char* argv[])
     try {
         if (runTests) {
             Utils::RunAllTests();
+            assert(!config.kafkaTopicTest.empty());
         }
 
         // Common part both for tests and production
         {
-            MainLoopController mlc(config.kafkaBroker, config.kafkaTopic, config.kafkaPartition,
+            MainLoopController mlc(config.kafkaBroker, runTests ? config.kafkaTopicTest : config.kafkaTopic,
+                                   config.kafkaPartition,
                                    config.inputDir,
                                    config.cdrExtension, config.archiveDir, config.badDir,
                                    runTests);

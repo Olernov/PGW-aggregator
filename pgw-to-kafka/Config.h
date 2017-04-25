@@ -16,6 +16,7 @@ public:
     std::string DumpAllSettings();
     std::string kafkaBroker;
     std::string kafkaTopic;
+    std::string kafkaTopicTest;
     unsigned32 kafkaPartition;
     std::string inputDir;
     std::string archiveDir;
@@ -27,6 +28,7 @@ public:
 private:
     const std::string kafkaBrokerParamName = "KAFKA_BROKER";
     const std::string kafkaTopicParamName = "KAFKA_TOPIC";
+    const std::string kafkaTopicTestParamName = "KAFKA_TOPIC_TEST";
     const std::string kafkaPartitionParamName = "KAFKA_PARTITION";
     const std::string inputDirParamName = "INPUT_DIR";
     const std::string archiveDirParamName = "ARCHIVE_DIR";
@@ -37,3 +39,4 @@ private:
     const std::string logLevelParamName = "LOG_LEVEL";
     unsigned long ParseULongValue(const std::string& name, const std::string& value);
 };
+

@@ -57,6 +57,9 @@ void Config::ReadConfigFile(std::ifstream& configStream)
         else if (option_name == kafkaTopicParamName) {
             kafkaTopic = option_value;
         }
+        else if (option_name == kafkaTopicTestParamName) {
+            kafkaTopicTest = option_value;
+        }
         else if (option_name == kafkaPartitionParamName) {
             kafkaPartition = ParseULongValue(option_name, option_value);
         }
@@ -114,6 +117,9 @@ void Config::ValidateParams()
     if (kafkaBroker.empty()) {
         throw std::runtime_error(kafkaBrokerParamName + " parameter is not set.");
     }
+    if (kafkaTopic.empty()) {
+        throw std::runtime_error(kafkaTopicParamName + " parameter is not set.");
+    }
     if (inputDir.empty()) {
         throw std::runtime_error(inputDirParamName + " parameter is not set.");
     }
@@ -146,6 +152,7 @@ std::string Config::DumpAllSettings()
 {
     return  kafkaBrokerParamName + ": " + kafkaBroker + crlf +
             kafkaTopicParamName + ": " + kafkaTopic + crlf +
+            kafkaTopicTestParamName + ": " + kafkaTopicTest + crlf +
             kafkaPartitionParamName + ": " + std::to_string(kafkaPartition) + crlf +
             inputDirParamName + ": " + inputDir + crlf +
             archiveDirParamName + ": " + archiveDir + crlf +
