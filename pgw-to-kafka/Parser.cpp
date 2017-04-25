@@ -277,19 +277,19 @@ int Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
         std::vector<uint8_t> rawData(byteCount);
         reader.readBytes(&rawData[0], byteCount);
 
-        RdKafka::ErrorCode resp =
-            kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+        RdKafka::ErrorCode resp;
+        do {
+            resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
                                    RdKafka::Producer::RK_MSG_COPY,
                                    rawData.data(), byteCount, nullptr, 0, 0, nullptr);
+            if (resp == RdKafka::ERR__QUEUE_FULL) {
+                kafkaProducer->poll(producerPollTimeoutMs);
+            }
+        }
+        while (resp == RdKafka::ERR__QUEUE_FULL);
+
         if (resp != RdKafka::ERR_NO_ERROR) {
-// TODO: wait and retry when the queue is full
-//            if (resp == RdKafka::ERR__QUEUE_FULL) {
-//                WaitForKafkaQueue();
-//            }
-//            else {
-                // TODO: log and process error
-                logWriter << "Kafka produce failed: " + RdKafka::err2str(resp);
-            //}
+            throw std::runtime_error("Kafka produce failed: " + RdKafka::err2str(resp));
         }
         else {
             sent++;
