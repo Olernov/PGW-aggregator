@@ -294,9 +294,8 @@ int Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
         else {
             sent++;
             if (runTest) {
-                sentAvroCdrs.clear();
                 auto res = sentAvroCdrs.insert(avroCdr);
-                assert(res.second);
+                //assert(res.second);
                 auto it = sentAvroCdrs.find(avroCdr);
                 assert (it != sentAvroCdrs.end());
             }
@@ -330,8 +329,9 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
     }
 
     unsigned32 consumed = 0;
+    bool failedToFindCdr = false;
     while(true) {
-        std::unique_ptr<RdKafka::Message> message(consumer->consume(topic.get(), kafkaPartition, 10000));
+        std::unique_ptr<RdKafka::Message> message(consumer->consume(topic.get(), kafkaPartition, 5000));
         if (message->err() == RdKafka::ERR__TIMED_OUT) {
             // consider we have read all records
             break;
@@ -347,13 +347,15 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
             avro::decode(*decoder, avroCdr);
             auto it = sentAvroCdrs.find(avroCdr);
             if (it != sentAvroCdrs.end()) {
-                std::cout << std::endl << "CDR  found in sent records:" << std::endl;
-                PrintAvroCdrContents(avroCdr);
+//                std::cout << std::endl << "CDR found in sent records:" << std::endl;
+//                PrintAvroCdrContents(avroCdr);
                 sentAvroCdrs.erase(it);
+
             }
             else {
                 std::cout << std::endl << "CDR NOT FOUND in sent records:" << std::endl;
                 PrintAvroCdrContents(avroCdr);
+                failedToFindCdr = true;
             }
         }
         else {
@@ -378,8 +380,9 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
     consumer->poll(1000);
     std::cout << "Consumed " << consumed << " records from Kafka." << std::endl;
     std::cout << "sentAvroCdrs left: " << sentAvroCdrs.size() << std::endl;
-    std::cout << (sentAvroCdrs.size() > 0 ? "Test FAILED" : "Test PASSED")<< std::endl;
-    return sentAvroCdrs.size() > 0;
+    std::cout << (sentAvroCdrs.size() > 0 ? "CompareSentAndConsumedRecords test FAILED" :
+                                            "CompareSentAndConsumedRecords test PASSED") << std::endl;
+    return !failedToFindCdr && (sentAvroCdrs.size() == 0);
 }
 
 
@@ -424,7 +427,7 @@ void Parser::RunTests()
     sentAvroCdrs.clear();
     PGW_CDR emptyCdr, cdr, cdr2, cdr3;
     auto res = sentAvroCdrs.insert(emptyCdr);
-    assert(res.second);
+    //assert(res.second);
     auto it = sentAvroCdrs.find(emptyCdr);
     assert(it != sentAvroCdrs.end());
 
@@ -469,7 +472,7 @@ void Parser::RunTests()
 
     cdr2.UserLocationInfo = { 113, 2, 0, 12, 54, 68, 1, 255, 23, 254 };
     res = sentAvroCdrs.insert(cdr2);
-    assert(res.second);
+    //assert(res.second);
     it = sentAvroCdrs.find(cdr2);
     assert(it != sentAvroCdrs.end());
 
@@ -489,6 +492,24 @@ void Parser::RunTests()
     cdr.SequenceNumber.set_int(1234);
     it = sentAvroCdrs.find(cdr);
     assert(it == sentAvroCdrs.end());
+
+    PGW_CDR cdr4;
+    cdr4.ChargingID = 1149416178;
+    cdr4.FirstUsageTime = 1464709738000;
+    cdr4.IMEI.set_string("867025020224690");
+    cdr4.IMSI = 250270100174584;
+    cdr4.MSISDN = 79047166648;
+    cdr4.SequenceNumber.set_int(357);
+    cdr4.ServedPDPAddress = 179861293;
+    cdr4.TimeOfUsage = 0;
+    cdr4.RatingGroup = 1;
+    cdr4.UserLocationInfo = { 24, 82, 240, 114, 0, 213, 82, 240, 114, 0, 0, 17, 1 };
+    cdr4.VolumeDownlink = 184;
+    cdr4.VolumeUplink = 52;
+    sentAvroCdrs.insert(cdr4);
+    it = sentAvroCdrs.find(cdr4);
+    assert(it != sentAvroCdrs.end());
+
 
     sentAvroCdrs.clear();
     std::cout << "Parser tests PASSED" << std::endl;

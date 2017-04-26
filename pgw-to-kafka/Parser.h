@@ -83,7 +83,7 @@ public:
         else if (lhs.VolumeUplink > rhs.VolumeUplink) return false;
 
         if (lhs.VolumeDownlink < rhs.VolumeDownlink) return true;
-        else if (lhs.VolumeDownlink > rhs.VolumeDownlink) return true;
+        else if (lhs.VolumeDownlink > rhs.VolumeDownlink) return false;
 
         if (lhs.ChargingID < rhs.ChargingID) return true;
         else if (lhs.ChargingID > rhs.ChargingID) return false;
@@ -147,7 +147,7 @@ private:
     std::unique_ptr<RdKafka::Producer> kafkaProducer;
     //KafkaDeliveryReportCallback deliveryReportCb;
     KafkaEventCallback eventCb;
-    std::set<PGW_CDR, AvroCdrCompare> sentAvroCdrs;
+    std::multiset<PGW_CDR, AvroCdrCompare> sentAvroCdrs;
 
     unsigned32 ParseFile(FILE *pgwFile, const std::string& filename);
     void WaitForKafkaQueue();
