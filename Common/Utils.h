@@ -23,6 +23,7 @@ class Utils
     static inline double DiffMinutes(time_t start, time_t end)
         { return (end > start ? static_cast<double>(end - start) / 60 : static_cast<double>(start - end) / 60); }
     static std::map<unsigned32, DataVolumes> SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord);
+    static void SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesMap& dataVolumes);
 
 	static bool RunAllTests();
 private:

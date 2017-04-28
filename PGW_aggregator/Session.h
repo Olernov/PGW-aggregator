@@ -44,7 +44,8 @@ public:
     std::string SessionDataDump();
     void UpdateData(unsigned32 volumeUplinkIncrease, unsigned32 volumeDownlinkIncrease,
                     unsigned32 durationIncrease, time_t newcdrTime);
-
+    inline bool HaveDataToExport()
+        { return volumeUplinkAggregated>0 || volumeDownlinkAggregated>0 || endTime>startTime; }
 private:
     const double tollFreeBound = 0.001;
 
@@ -65,8 +66,7 @@ private:
     DBConnect& dbConnect;
 
     void ExportIfNeeded();
-    inline bool HaveDataToExport()
-        { return volumeUplinkAggregated>0 || volumeDownlinkAggregated>0 || endTime>startTime; }
+
 
     friend class ExportRules;
 };

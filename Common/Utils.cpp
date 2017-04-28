@@ -282,7 +282,13 @@ std::string Utils::Time_t_to_String(time_t timeT)
 
 std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord)
 {
-    std::map<unsigned32, DataVolumes> dataVolumes;
+    DataVolumesMap dataVolumes;
+    SumDataVolumesByRatingGroup(pGWRecord, dataVolumes);
+    return dataVolumes;
+}
+
+void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesMap& dataVolumes)
+{
     for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
         auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
         if (it != dataVolumes.end()) {
@@ -301,7 +307,6 @@ std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRe
                 ));
         }
     }
-    return dataVolumes;
 }
 
 

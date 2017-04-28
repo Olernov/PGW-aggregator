@@ -162,8 +162,19 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 void Aggregator::ExportAllSessionsToDB()
 {
     logWriter.Write("Exporting all sessions: " + std::to_string(sessions.size()), thisIndex);
-    for (auto& it : sessions) {
-        it.second->ForceExport();
+    while(std::any_of(sessions.begin(), sessions.end(),
+                     [](std::pair<unsigned32, Session_ptr> s) { return s.second.get()->HaveDataToExport(); } )) {
+        for (auto& it : sessions) {
+            try {
+                it.second->ForceExport();
+            }
+            catch(const std::runtime_error& ex) {
+                exceptionText = ex.what();
+                logWriter.Write(exceptionText, thisIndex);
+                dbConnect.reconnect();
+                SendAlertIfNeeded(exceptionText);
+            }
+        }
     }
     logWriter.Write("All sessions exported.", thisIndex);
 }
