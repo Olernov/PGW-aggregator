@@ -2,6 +2,10 @@
 #include <string>
 #include "LogWriter.h"
 
+#ifdef _WIN32
+#define localtime_r(time_t, tm) localtime_s(tm, time_t)
+#define snprintf sprintf_s
+#endif
 
 LogWriter::LogWriter() 	:
     messageQueue(queueSize),
@@ -10,21 +14,34 @@ LogWriter::LogWriter() 	:
 {
 }
 
+bool LogWriter::Initialize(const std::string& logPath, const std::string& namePrefix, LogLevel level)
+{
+    m_logPath = logPath;
+	m_namePrefix = namePrefix;
+    logLevel = level;
+	time_t now;
+	time(&now);
+    SetLogStream(now);
+	m_writeThread = std::thread(&LogWriter::WriteThreadFunction, this);
+	return true;
+}
+
 
 void LogWriter::SetLogStream(time_t messageTime)
 {
     tm messageTimeTm;
-    localtime_r(&messageTime, &messageTimeTm);
 	char dateBuf[30];
-    snprintf(dateBuf, 30, "%4.4d%2.2d%2.2d", messageTimeTm.tm_year+1900, messageTimeTm.tm_mon+1, messageTimeTm.tm_mday);
-    if(std::string(dateBuf) != m_logFileDate || !m_logStream.is_open()) {
+	// TODO: not thread-safe in Windows!
+    localtime_r(&messageTime, &messageTimeTm);
+	snprintf(dateBuf, 30, "%4.4d%2.2d%2.2d", messageTimeTm.tm_year+1900, messageTimeTm.tm_mon+1, messageTimeTm.tm_mday);
+	if(std::string(dateBuf) != m_logFileDate || !m_logStream.is_open()) {
         m_logStream.close();
         char logName[maxPath];
         if(!m_logPath.empty()) {
-            snprintf(logName, maxPath, "%s/pgw_%s.log", m_logPath.c_str(), dateBuf);
+            snprintf(logName, maxPath, "%s/%s_%s.log", m_logPath.c_str(), m_namePrefix.c_str(), dateBuf);
         }
         else {
-            snprintf(logName, maxPath, "pgw_%s.log", dateBuf);
+            snprintf(logName, maxPath, "./%s_%s.log", m_namePrefix.c_str(), dateBuf);
         }
 		m_logStream.open(logName, std::fstream::app | std::fstream::out);
         if (!m_logStream.is_open()) {
@@ -56,7 +73,7 @@ void LogWriter::WriteThreadFunction()
 			if (m_stopFlag && messageQueue.empty())
 				return;
             if (messageQueue.empty()) {
-                std::this_thread::sleep_for(std::chrono::seconds(secondsToSleepWhenNothingToDo));
+                std::this_thread::sleep_for(std::chrono::seconds(sleepWhenQueueEmpty));
             }
 		}
 		catch (...) {
@@ -69,16 +86,6 @@ void LogWriter::WriteThreadFunction()
 }
 
 
-bool LogWriter::Initialize(const std::string& logPath, LogLevel level)
-{
-    m_logPath = logPath;
-    logLevel = level;
-	time_t now;
-	time(&now);
-    SetLogStream(now);
-	m_writeThread = std::thread(&LogWriter::WriteThreadFunction, this);
-	return true;
-}
 
 bool LogWriter::Write(LogMessage* message)
 {

@@ -84,7 +84,7 @@ int main(int argc, const char* argv[])
     }
     pidFile.close();
 
-    logWriter.Initialize(config.logDir, config.logLevel);
+    logWriter.Initialize(config.logDir, "pgw", config.logLevel);
     logWriter << "PGW aggregator start";
     logWriter << config.DumpAllSettings();
 
