@@ -55,7 +55,7 @@ int main(int argc, const char* argv[])
     }
     pidFile.close();
 
-    logWriter.Initialize(config.logDir, config.logLevel);
+    logWriter.Initialize(config.logDir, "pgw", config.logLevel);
     logWriter << "PGW-to-Kafka start";
     logWriter << config.DumpAllSettings();
 
@@ -72,7 +72,7 @@ int main(int argc, const char* argv[])
                                    config.inputDir,
                                    config.cdrExtension, config.archiveDir, config.badDir,
                                    runTests);
-            mlc.SetPrintContents(true);
+            // mlc.SetPrintContents(true);
             mlc.Run();
         }
     }

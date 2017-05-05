@@ -61,10 +61,9 @@ Parser::Parser(const std::string &kafkaBroker, const std::string &kafkaTopic, un
 {
 
     std::string errstr;
-    if (kafkaGlobalConf->set("bootstrap.servers", kafkaBroker, errstr) != RdKafka::Conf::CONF_OK) {
-        throw std::runtime_error("Failed to set kafka global conf: " + errstr);
-    }
-    if (kafkaGlobalConf->set("group.id", "pgw-emitter", errstr) != RdKafka::Conf::CONF_OK) {
+    if (kafkaGlobalConf->set("bootstrap.servers", kafkaBroker, errstr) != RdKafka::Conf::CONF_OK
+            || kafkaGlobalConf->set("group.id", "pgw-emitter", errstr) != RdKafka::Conf::CONF_OK
+            || kafkaGlobalConf->set("api.version.request", "true", errstr) != RdKafka::Conf::CONF_OK) {
         throw std::runtime_error("Failed to set kafka global conf: " + errstr);
     }
     //kafkaGlobalConf->set("dr_cb", &deliveryReportCb, errstr);
@@ -278,10 +277,12 @@ int Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
         reader.readBytes(&rawData[0], byteCount);
 
         RdKafka::ErrorCode resp;
+        std::string errstr;
         do {
             resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
                                    RdKafka::Producer::RK_MSG_COPY,
-                                   rawData.data(), byteCount, nullptr, 0, 0, nullptr);
+                                   rawData.data(), byteCount, nullptr, 0,
+                                   time(nullptr) * 1000 /*milliseconds*/, nullptr);
             if (resp == RdKafka::ERR__QUEUE_FULL) {
                 kafkaProducer->poll(producerPollTimeoutMs);
             }
@@ -295,7 +296,6 @@ int Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
             sent++;
             if (runTest) {
                 auto res = sentAvroCdrs.insert(avroCdr);
-                //assert(res.second);
                 auto it = sentAvroCdrs.find(avroCdr);
                 assert (it != sentAvroCdrs.end());
             }
@@ -332,6 +332,7 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
     bool failedToFindCdr = false;
     while(true) {
         std::unique_ptr<RdKafka::Message> message(consumer->consume(topic.get(), kafkaPartition, 5000));
+        RdKafka::MessageTimestamp mt = message->timestamp();
         if (message->err() == RdKafka::ERR__TIMED_OUT) {
             // consider we have read all records
             break;

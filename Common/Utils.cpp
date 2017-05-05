@@ -289,6 +289,9 @@ std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRe
 
 void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesMap& dataVolumes)
 {
+    if (pGWRecord.listOfServiceData == nullptr) {
+        return;
+    }
     for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
         auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
         if (it != dataVolumes.end()) {
