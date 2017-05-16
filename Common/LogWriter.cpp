@@ -31,7 +31,6 @@ void LogWriter::SetLogStream(time_t messageTime)
 {
     tm messageTimeTm;
 	char dateBuf[30];
-	// TODO: not thread-safe in Windows!
     localtime_r(&messageTime, &messageTimeTm);
 	snprintf(dateBuf, 30, "%4.4d%2.2d%2.2d", messageTimeTm.tm_year+1900, messageTimeTm.tm_mon+1, messageTimeTm.tm_mday);
 	if(std::string(dateBuf) != m_logFileDate || !m_logStream.is_open()) {

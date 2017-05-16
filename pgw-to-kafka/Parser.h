@@ -43,22 +43,6 @@ class AvroCdrCompare
 {
 public:
     bool operator() (const PGW_CDR& lhs, const PGW_CDR& rhs) const {
-//        return (
-//            lhs.IMSI < rhs.IMSI ||
-//            lhs.MSISDN < rhs.MSISDN ||
-//            ((lhs.IMEI.is_null() ? std::string("<null>") : lhs.IMEI.get_string()) <
-//                (rhs.IMEI.is_null() ? std::string("<null>") : rhs.IMEI.get_string())) ||
-//            lhs.ServedPDPAddress < rhs.ServedPDPAddress ||
-//            lhs.FirstUsageTime < rhs.FirstUsageTime ||
-//            lhs.RatingGroup < rhs.RatingGroup ||
-//            lhs.VolumeUplink < rhs.VolumeUplink ||
-//            lhs.VolumeDownlink < rhs.VolumeDownlink ||
-//            lhs.ChargingID < rhs.ChargingID ||
-//            ((lhs.SequenceNumber.is_null() ? -1 : lhs.SequenceNumber.get_int()) <
-//                (rhs.SequenceNumber.is_null() ? -1 : rhs.SequenceNumber.get_int())) ||
-//            lhs.TimeOfUsage < rhs.TimeOfUsage ||
-//            lhs.UserLocationInfo < rhs.UserLocationInfo
-//                    );
         if (lhs.IMSI < rhs.IMSI) return true;
         else if (lhs.IMSI > rhs.IMSI) return false;
 
@@ -102,13 +86,6 @@ public:
         return false;
     }
 };
-
-
-//class KafkaDeliveryReportCallback : public RdKafka::DeliveryReportCb
-//{
-// public:
-//  void dr_cb (RdKafka::Message &message);
-//};
 
 
 class Parser
@@ -155,6 +132,10 @@ private:
     bool CompareSentAndConsumedRecords(int64_t startOffset);
     void PrintAvroCdrContents(const PGW_CDR& cdr) const;
     void RunTests();
+    PGW_CDR ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex);
+    int EncodeAvro(const PGW_CDR& avroCdr, avro::OutputStream* out);
+    void ReadEncodedAvroCdr(avro::OutputStream* out, size_t byteCount, std::vector<uint8_t> &rawData);
+    std::vector<uint8_t> EncodeCdr(const PGW_CDR& avroCdr);
 };
 
 

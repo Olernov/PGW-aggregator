@@ -37,16 +37,8 @@ void KafkaEventCallback::event_cb (RdKafka::Event &event)
 }
 
 
-//void KafkaDeliveryReportCallback::dr_cb (RdKafka::Message &message)
-//{
-//    std::cout << "Message delivery for (" << message.len() << " bytes): " <<
-//        message.errstr() << std::endl;
-//    if (message.key())
-//      std::cout << "Key: " << *(message.key()) << ";" << std::endl;
-//}
-
-
-Parser::Parser(const std::string &kafkaBroker, const std::string &kafkaTopic, unsigned32 partition, const std::string &filesDirectory, const std::string &extension,
+Parser::Parser(const std::string &kafkaBroker, const std::string &kafkaTopic, unsigned32 partition,
+               const std::string &filesDirectory, const std::string &extension,
                const std::string &archDirectory, const std::string &badDirectory, bool runtest) :
     kafkaTopic(kafkaTopic),
     kafkaPartition(partition),
@@ -66,7 +58,6 @@ Parser::Parser(const std::string &kafkaBroker, const std::string &kafkaTopic, un
             || kafkaGlobalConf->set("api.version.request", "true", errstr) != RdKafka::Conf::CONF_OK) {
         throw std::runtime_error("Failed to set kafka global conf: " + errstr);
     }
-    //kafkaGlobalConf->set("dr_cb", &deliveryReportCb, errstr);
     kafkaGlobalConf->set("event_cb", &eventCb, errstr);
 
     kafkaProducer = std::unique_ptr<RdKafka::Producer>(RdKafka::Producer::create(kafkaGlobalConf.get(), errstr));
@@ -141,7 +132,7 @@ void Parser::ProcessFile(const filesystem::path& file)
     if (runTest) {
         assert(sentAvroCdrs.size() == recordCount);
         std::cout<< "Consuming sent records from Kafka ..." << std::endl;
-        assert(CompareSentAndConsumedRecords(highOffset + 1));
+        assert(CompareSentAndConsumedRecords(highOffset));
     }
 }
 
@@ -210,78 +201,110 @@ void Parser::WaitForKafkaQueue()
     }
 }
 
+PGW_CDR Parser::ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex)
+{
+    PGW_CDR avroCdr;
+    avroCdr.IMSI = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
+    avroCdr.MSISDN = Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN);
+
+    // DEBUG!
+//        if (avroCdr.IMSI != 250270100113797 && avroCdr.IMSI != 250270700274584 && avroCdr.IMSI != 250270100481997
+//                && avroCdr.IMSI != 250270100062191 && avroCdr.IMSI != 250270100583026  && avroCdr.IMSI != 250270100558629
+//                 && avroCdr.IMSI != 250270100039576  && avroCdr.IMSI != 250270100122827 && avroCdr.IMSI != 250270100426286) {
+//            return 0;
+//        }
+
+    if (pGWRecord.servedIMEISV != nullptr) {
+        avroCdr.IMEI.set_string(Utils::TBCDString_to_String(pGWRecord.servedIMEISV));
+    }
+    else {
+        avroCdr.IMEI.set_null();
+    }
+    if (pGWRecord.servedPDPPDNAddress != nullptr
+            && pGWRecord.servedPDPPDNAddress->present == PDPAddress_PR_iPAddress) {
+        avroCdr.ServedPDPAddress = Utils::IPAddress_to_ULong(&pGWRecord.servedPDPPDNAddress->choice.iPAddress);
+    }
+    else {
+        avroCdr.ServedPDPAddress = 0;
+    }
+    if (pGWRecord.listOfServiceData->list.array[listIndex]->timeOfFirstUsage != nullptr) {
+        avroCdr.FirstUsageTime = Utils::Timestamp_to_time_t(
+                    pGWRecord.listOfServiceData->list.array[listIndex]->timeOfFirstUsage) * 1000; // milliseconds
+    }
+    else if (pGWRecord.listOfServiceData->list.array[listIndex]->timeOfLastUsage != nullptr) {
+        avroCdr.FirstUsageTime = Utils::Timestamp_to_time_t(
+                    pGWRecord.listOfServiceData->list.array[listIndex]->timeOfLastUsage) * 1000;
+    }
+    else {
+        avroCdr.FirstUsageTime = Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime);
+    }
+    avroCdr.RatingGroup = pGWRecord.listOfServiceData->list.array[listIndex]->ratingGroup;
+    if (pGWRecord.listOfServiceData->list.array[listIndex]->datavolumeFBCUplink) {
+        avroCdr.VolumeUplink = *pGWRecord.listOfServiceData->list.array[listIndex]->datavolumeFBCUplink;
+    }
+    if (pGWRecord.listOfServiceData->list.array[listIndex]->datavolumeFBCDownlink) {
+        avroCdr.VolumeDownlink = *pGWRecord.listOfServiceData->list.array[listIndex]->datavolumeFBCDownlink;
+    }
+    avroCdr.ChargingID = pGWRecord.chargingID;
+    if (pGWRecord.recordSequenceNumber) {
+        avroCdr.SequenceNumber.set_int(*pGWRecord.recordSequenceNumber);
+    }
+    else {
+        avroCdr.SequenceNumber.set_null();
+    }
+    if (pGWRecord.listOfServiceData->list.array[listIndex]->timeUsage != nullptr) {
+        avroCdr.TimeOfUsage = *pGWRecord.listOfServiceData->list.array[listIndex]->timeUsage;
+    }
+    else {
+        avroCdr.TimeOfUsage = pGWRecord.duration;
+    }
+    int locInfoSize = pGWRecord.userLocationInformation->size;
+    avroCdr.UserLocationInfo.resize(locInfoSize);
+    std::copy(&pGWRecord.userLocationInformation->buf[0], &pGWRecord.userLocationInformation->buf[locInfoSize],
+            avroCdr.UserLocationInfo.begin());
+}
+
+
+int Parser::EncodeAvro(const PGW_CDR& avroCdr, avro::OutputStream* out)
+{
+    avro::EncoderPtr encoder(avro::binaryEncoder());
+    encoder->init(*out);
+    avro::encode(*encoder, avroCdr);
+    encoder->flush();
+    return out->byteCount();
+}
+
+
+void Parser::ReadEncodedAvroCdr(avro::OutputStream* out, size_t byteCount, std::vector<uint8_t>& rawData)
+{
+    std::unique_ptr<avro::InputStream> in = avro::memoryInputStream(*out);
+    avro::StreamReader reader(*in);
+    reader.readBytes(&rawData[0], byteCount);
+}
+
+
+std::vector<uint8_t> Parser::EncodeCdr(const PGW_CDR& avroCdr)
+{
+    std::unique_ptr<avro::OutputStream> out(avro::memoryOutputStream());
+    size_t byteCount = EncodeAvro(avroCdr, out.get());
+    std::vector<uint8_t> rawData(byteCount);
+    ReadEncodedAvroCdr(out.get(), byteCount, rawData);
+    return rawData;
+}
+
+
 int Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
 {
     unsigned32 sent = 0;
     for (int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
-        PGW_CDR avroCdr;
-        avroCdr.IMSI = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
-        avroCdr.MSISDN = Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN);
-        if (pGWRecord.servedIMEISV != nullptr) {
-            avroCdr.IMEI.set_string(Utils::TBCDString_to_String(pGWRecord.servedIMEISV));
-        }
-        else {
-            avroCdr.IMEI.set_null();
-        }
-        if (pGWRecord.servedPDPPDNAddress != nullptr
-                && pGWRecord.servedPDPPDNAddress->present == PDPAddress_PR_iPAddress) {
-            avroCdr.ServedPDPAddress = Utils::IPAddress_to_ULong(&pGWRecord.servedPDPPDNAddress->choice.iPAddress);
-        }
-        else {
-            avroCdr.ServedPDPAddress = 0;
-        }
-        if (pGWRecord.listOfServiceData->list.array[i]->timeOfFirstUsage != nullptr) {
-            avroCdr.FirstUsageTime = Utils::Timestamp_to_time_t(
-                        pGWRecord.listOfServiceData->list.array[i]->timeOfFirstUsage) * 1000; // milliseconds
-        }
-        else if (pGWRecord.listOfServiceData->list.array[i]->timeOfLastUsage != nullptr) {
-            avroCdr.FirstUsageTime = Utils::Timestamp_to_time_t(
-                        pGWRecord.listOfServiceData->list.array[i]->timeOfLastUsage) * 1000;
-        }
-        else {
-            avroCdr.FirstUsageTime = Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime);
-        }
-        avroCdr.RatingGroup = pGWRecord.listOfServiceData->list.array[i]->ratingGroup;
-        if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink) {
-            avroCdr.VolumeUplink = *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
-        }
-        if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink) {
-            avroCdr.VolumeDownlink = *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
-        }
-        avroCdr.ChargingID = pGWRecord.chargingID;
-        if (pGWRecord.recordSequenceNumber) {
-            avroCdr.SequenceNumber.set_int(*pGWRecord.recordSequenceNumber);
-        }
-        else {
-            avroCdr.SequenceNumber.set_null();
-        }
-        if (pGWRecord.listOfServiceData->list.array[i]->timeUsage != nullptr) {
-            avroCdr.TimeOfUsage = *pGWRecord.listOfServiceData->list.array[i]->timeUsage;
-        }
-        else {
-            avroCdr.TimeOfUsage = pGWRecord.duration;
-        }
-        int locInfoSize = pGWRecord.userLocationInformation->size;
-        avroCdr.UserLocationInfo.resize(locInfoSize);
-        std::copy(&pGWRecord.userLocationInformation->buf[0], &pGWRecord.userLocationInformation->buf[locInfoSize],
-                avroCdr.UserLocationInfo.begin());
-        std::unique_ptr<avro::OutputStream> out(avro::memoryOutputStream());
-        avro::EncoderPtr encoder(avro::binaryEncoder());
-        encoder->init(*out);
-        avro::encode(*encoder, avroCdr);
-        encoder->flush();
-        size_t byteCount = out->byteCount();
-        std::unique_ptr<avro::InputStream> in = avro::memoryInputStream(*out);
-        avro::StreamReader reader(*in);
-        std::vector<uint8_t> rawData(byteCount);
-        reader.readBytes(&rawData[0], byteCount);
-
+        PGW_CDR avroCdr = ConstructAvroCdr(pGWRecord, i);
+        std::vector<uint8_t> rawData = EncodeCdr(avroCdr);
         RdKafka::ErrorCode resp;
         std::string errstr;
         do {
             resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
                                    RdKafka::Producer::RK_MSG_COPY,
-                                   rawData.data(), byteCount, nullptr, 0,
+                                   rawData.data(), rawData.size(), nullptr, 0,
                                    time(nullptr) * 1000 /*milliseconds*/, nullptr);
             if (resp == RdKafka::ERR__QUEUE_FULL) {
                 kafkaProducer->poll(producerPollTimeoutMs);
@@ -339,7 +362,7 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
         }
         if (message->err() == RdKafka::ERR_NO_ERROR) {
             consumed++;
-            std::cout << "Read msg #" << consumed << " at offset " << message->offset() << std::endl;
+            //std::cout << "Read msg #" << consumed << " at offset " << message->offset() << std::endl;
             PGW_CDR avroCdr;
             std::unique_ptr<avro::InputStream> in(avro::memoryInputStream(
                                          static_cast<uint8_t*>(message->payload()), message->len()));
@@ -348,8 +371,6 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
             avro::decode(*decoder, avroCdr);
             auto it = sentAvroCdrs.find(avroCdr);
             if (it != sentAvroCdrs.end()) {
-//                std::cout << std::endl << "CDR found in sent records:" << std::endl;
-//                PrintAvroCdrContents(avroCdr);
                 sentAvroCdrs.erase(it);
 
             }
@@ -496,22 +517,100 @@ void Parser::RunTests()
 
     PGW_CDR cdr4;
     cdr4.ChargingID = 1149416178;
-    cdr4.FirstUsageTime = 1464709738000;
+    cdr4.FirstUsageTime = time(nullptr);
     cdr4.IMEI.set_string("867025020224690");
-    cdr4.IMSI = 250270100174584;
+    cdr4.IMSI = 250270100113797;
     cdr4.MSISDN = 79047166648;
     cdr4.SequenceNumber.set_int(357);
     cdr4.ServedPDPAddress = 179861293;
     cdr4.TimeOfUsage = 0;
     cdr4.RatingGroup = 1;
     cdr4.UserLocationInfo = { 24, 82, 240, 114, 0, 213, 82, 240, 114, 0, 0, 17, 1 };
-    cdr4.VolumeDownlink = 184;
-    cdr4.VolumeUplink = 52;
+    cdr4.VolumeDownlink = 200;
+    cdr4.VolumeUplink = 100;
     sentAvroCdrs.insert(cdr4);
     it = sentAvroCdrs.find(cdr4);
     assert(it != sentAvroCdrs.end());
-
-
     sentAvroCdrs.clear();
-    std::cout << "Parser tests PASSED" << std::endl;
+    std::cout << "Parser tests PASSED. Starting to send sample CDR set. " << std::endl;
+
+    // Sending preset cdrs to consuming service
+    std::vector<uint8_t> rawData = EncodeCdr(cdr4);
+    RdKafka::ErrorCode resp;
+    std::string errstr;
+    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                               RdKafka::Producer::RK_MSG_COPY,
+                               rawData.data(), rawData.size(), nullptr, 0,
+                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
+    assert(resp == RdKafka::ERR_NO_ERROR);
+
+    std::cout << "1st cdr sent, sleeping 15 sec .... " << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(15));
+    cdr4.FirstUsageTime = time(nullptr);
+    cdr4.VolumeDownlink = 400;
+    cdr4.VolumeUplink = 200;
+    rawData = EncodeCdr(cdr4);
+    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                               RdKafka::Producer::RK_MSG_COPY,
+                               rawData.data(), rawData.size(), nullptr, 0,
+                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
+    assert(resp == RdKafka::ERR_NO_ERROR);
+
+    // send unregistered IMSI
+    std::cout << "Sending unregistered IMSI" << std::endl;
+    cdr4.IMSI = 250270100426286;
+    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                               RdKafka::Producer::RK_MSG_COPY,
+                               rawData.data(), rawData.size(), nullptr, 0,
+                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
+    assert(resp == RdKafka::ERR_NO_ERROR);
+
+    // registered IMSI again
+    std::cout << "Next cdr sent, sleeping 35 sec .... " << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(35));
+    cdr4.IMSI = 250270100113797;
+    cdr4.FirstUsageTime = time(nullptr);
+    cdr4.VolumeDownlink = 600;
+    cdr4.VolumeUplink = 400;
+    rawData = EncodeCdr(cdr4);
+    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                               RdKafka::Producer::RK_MSG_COPY,
+                               rawData.data(), rawData.size(), nullptr, 0,
+                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
+    assert(resp == RdKafka::ERR_NO_ERROR);
+
+    // new aggregation should start for this CDR
+    std::cout << "Next cdr sent, sleeping 30 sec .... " << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(30));
+    cdr4.IMSI = 250270100113797;
+    cdr4.FirstUsageTime = time(nullptr);
+    cdr4.VolumeDownlink = 250;
+    cdr4.VolumeUplink = 150;
+    rawData = EncodeCdr(cdr4);
+    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                               RdKafka::Producer::RK_MSG_COPY,
+                               rawData.data(), rawData.size(), nullptr, 0,
+                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
+    assert(resp == RdKafka::ERR_NO_ERROR);
+
+    std::cout << "Next cdr sent, sleeping 30 sec .... " << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(30));
+    cdr4.IMSI = 250270100113797;
+    cdr4.FirstUsageTime = time(nullptr);
+    cdr4.VolumeDownlink = 75;
+    cdr4.VolumeUplink = 25;
+    rawData = EncodeCdr(cdr4);
+    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                               RdKafka::Producer::RK_MSG_COPY,
+                               rawData.data(), rawData.size(), nullptr, 0,
+                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
+    assert(resp == RdKafka::ERR_NO_ERROR);
+
+    std::cout << "Sample CDR set set is sent to topic: " << kafkaTopic << std::endl
+        << "Check aggregation results at consuming service." << std::endl
+        << "Must be:" << std::endl
+        << "250270100113797: uplink = 700, downlink = 1200" << std::endl
+        << "then later same IMSI: uplink = 175, downlink = 225" << std::endl
+        << "There must not be unregistered IMSI 250270100426286 in consuming service output" << std::endl << std::endl
+        << "Put some files to INPUT_DIR to perform produce/consume tests." << std::endl;
 }
