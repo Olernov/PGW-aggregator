@@ -544,11 +544,26 @@ void Parser::RunTests()
                                time(nullptr) * 1000 /*milliseconds*/, nullptr);
     assert(resp == RdKafka::ERR_NO_ERROR);
 
-    std::cout << "1st cdr sent, sleeping 15 sec .... " << std::endl;
+    std::cout << "1st cdr 100/200 sent at " << Utils::Time_t_to_String(time(nullptr)) << ", sleeping 15 sec .... " << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(15));
-    cdr4.FirstUsageTime = time(nullptr);
-    cdr4.VolumeDownlink = 400;
-    cdr4.VolumeUplink = 200;
+
+    std::cout << "Sending 1000 CDRs 200/400 in 10 seconds started at " << Utils::Time_t_to_String(time(nullptr)) << std::endl;
+    for (int i = 0; i < 1000; i++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        cdr4.FirstUsageTime = time(nullptr);
+        cdr4.VolumeDownlink = 400000;
+        cdr4.VolumeUplink = 200000;
+        rawData = EncodeCdr(cdr4);
+        resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                                   RdKafka::Producer::RK_MSG_COPY,
+                                   rawData.data(), rawData.size(), nullptr, 0,
+                                   time(nullptr) * 1000 /*milliseconds*/, nullptr);
+        assert(resp == RdKafka::ERR_NO_ERROR);
+    }
+
+    // send unregistered IMSI
+    std::cout << "Sending unregistered IMSI at " << Utils::Time_t_to_String(time(nullptr)) << std::endl;
+    cdr4.IMSI = 250270100426286;
     rawData = EncodeCdr(cdr4);
     resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
                                RdKafka::Producer::RK_MSG_COPY,
@@ -556,17 +571,8 @@ void Parser::RunTests()
                                time(nullptr) * 1000 /*milliseconds*/, nullptr);
     assert(resp == RdKafka::ERR_NO_ERROR);
 
-    // send unregistered IMSI
-    std::cout << "Sending unregistered IMSI" << std::endl;
-    cdr4.IMSI = 250270100426286;
-    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
-                               RdKafka::Producer::RK_MSG_COPY,
-                               rawData.data(), rawData.size(), nullptr, 0,
-                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
-    assert(resp == RdKafka::ERR_NO_ERROR);
-
     // registered IMSI again
-    std::cout << "Next cdr sent, sleeping 35 sec .... " << std::endl;
+    std::cout << "Sleeping 35 sec .... " << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(35));
     cdr4.IMSI = 250270100113797;
     cdr4.FirstUsageTime = time(nullptr);
@@ -580,8 +586,8 @@ void Parser::RunTests()
     assert(resp == RdKafka::ERR_NO_ERROR);
 
     // new aggregation should start for this CDR
-    std::cout << "Next cdr sent, sleeping 30 sec .... " << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(30));
+    std::cout << "Cdr 400/600 sent at " << Utils::Time_t_to_String(time(nullptr)) << ", sleeping 15 sec .... " << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(15));
     cdr4.IMSI = 250270100113797;
     cdr4.FirstUsageTime = time(nullptr);
     cdr4.VolumeDownlink = 250;
@@ -592,9 +598,23 @@ void Parser::RunTests()
                                rawData.data(), rawData.size(), nullptr, 0,
                                time(nullptr) * 1000 /*milliseconds*/, nullptr);
     assert(resp == RdKafka::ERR_NO_ERROR);
+    std::cout << "Cdr 150/250 sent at " << Utils::Time_t_to_String(time(nullptr)) << std::endl;
 
-    std::cout << "Next cdr sent, sleeping 30 sec .... " << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(30));
+    // another registered IMSI
+    std::cout << "Sending another IMSI 710/810 at " << Utils::Time_t_to_String(time(nullptr)) << std::endl;
+    cdr4.IMSI = 250270700274584;
+    cdr4.FirstUsageTime = time(nullptr);
+    cdr4.VolumeDownlink = 810;
+    cdr4.VolumeUplink = 710;
+    rawData = EncodeCdr(cdr4);
+    resp = kafkaProducer->produce(kafkaTopic, RdKafka::Topic::PARTITION_UA,
+                               RdKafka::Producer::RK_MSG_COPY,
+                               rawData.data(), rawData.size(), nullptr, 0,
+                               time(nullptr) * 1000 /*milliseconds*/, nullptr);
+    assert(resp == RdKafka::ERR_NO_ERROR);
+
+    std::cout << "Sleeping 15 sec .... " << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(15));
     cdr4.IMSI = 250270100113797;
     cdr4.FirstUsageTime = time(nullptr);
     cdr4.VolumeDownlink = 75;
@@ -605,12 +625,10 @@ void Parser::RunTests()
                                rawData.data(), rawData.size(), nullptr, 0,
                                time(nullptr) * 1000 /*milliseconds*/, nullptr);
     assert(resp == RdKafka::ERR_NO_ERROR);
+    std::cout << "CDR 25/75 sent at " << Utils::Time_t_to_String(time(nullptr)) << std::endl;
 
     std::cout << "Sample CDR set set is sent to topic: " << kafkaTopic << std::endl
         << "Check aggregation results at consuming service." << std::endl
-        << "Must be:" << std::endl
-        << "250270100113797: uplink = 700, downlink = 1200" << std::endl
-        << "then later same IMSI: uplink = 175, downlink = 225" << std::endl
         << "There must not be unregistered IMSI 250270100426286 in consuming service output" << std::endl << std::endl
         << "Put some files to INPUT_DIR to perform produce/consume tests." << std::endl;
 }
