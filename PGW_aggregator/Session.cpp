@@ -115,13 +115,14 @@ void Session::ForceExport()
             endTime = notInitialized;
             lastExportTime = time(nullptr);
             tollFreeSign = rate < tollFreeBound;
-
         }
         catch(const otl_exception& ex) {
             logWriter << "**** DB ERROR while exporting chargingID " + std::to_string(chargingID) + " ****"
                          + crlf + OTL_Utils::OtlExceptionToText(ex) + crlf + SessionDataDump();
-            throw std::runtime_error("**** DB ERROR while exporting ****"
+            if (ex.code != deadlockExceptionCode) {
+                throw std::runtime_error("**** DB ERROR while exporting ****"
                                      + crlf + OTL_Utils::OtlExceptionToText(ex));
+            }
         }
     }
 }

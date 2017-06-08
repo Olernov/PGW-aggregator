@@ -48,7 +48,7 @@ public:
         { return volumeUplinkAggregated>0 || volumeDownlinkAggregated>0 || endTime>startTime; }
 private:
     const double tollFreeBound = 0.001;
-
+    const int deadlockExceptionCode = 60;
     unsigned64 mSISDN;
     std::string iMEI;
     std::string accessPointName;
