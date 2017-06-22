@@ -201,18 +201,10 @@ void Parser::WaitForKafkaQueue()
     }
 }
 
-PGW_CDR Parser::ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex)
+void Parser::ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex, PGW_CDR& avroCdr)
 {
-    PGW_CDR avroCdr;
     avroCdr.IMSI = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
     avroCdr.MSISDN = Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN);
-
-    // DEBUG!
-//        if (avroCdr.IMSI != 250270100113797 && avroCdr.IMSI != 250270700274584 && avroCdr.IMSI != 250270100481997
-//                && avroCdr.IMSI != 250270100062191 && avroCdr.IMSI != 250270100583026  && avroCdr.IMSI != 250270100558629
-//                 && avroCdr.IMSI != 250270100039576  && avroCdr.IMSI != 250270100122827 && avroCdr.IMSI != 250270100426286) {
-//            return 0;
-//        }
 
     if (pGWRecord.servedIMEISV != nullptr) {
         avroCdr.IMEI.set_string(Utils::TBCDString_to_String(pGWRecord.servedIMEISV));
@@ -258,10 +250,15 @@ PGW_CDR Parser::ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex)
     else {
         avroCdr.TimeOfUsage = pGWRecord.duration;
     }
-    int locInfoSize = pGWRecord.userLocationInformation->size;
-    avroCdr.UserLocationInfo.resize(locInfoSize);
-    std::copy(&pGWRecord.userLocationInformation->buf[0], &pGWRecord.userLocationInformation->buf[locInfoSize],
+    if (pGWRecord.userLocationInformation != nullptr) {
+        int locInfoSize = pGWRecord.userLocationInformation->size;
+        avroCdr.UserLocationInfo.resize(locInfoSize);
+        std::copy(&pGWRecord.userLocationInformation->buf[0], &pGWRecord.userLocationInformation->buf[locInfoSize],
             avroCdr.UserLocationInfo.begin());
+    }
+    else {
+        avroCdr.UserLocationInfo.resize(0);
+    }
 }
 
 
@@ -297,7 +294,8 @@ int Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
 {
     unsigned32 sent = 0;
     for (int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
-        PGW_CDR avroCdr = ConstructAvroCdr(pGWRecord, i);
+        PGW_CDR avroCdr;
+        ConstructAvroCdr(pGWRecord, i, avroCdr);
         std::vector<uint8_t> rawData = EncodeCdr(avroCdr);
         RdKafka::ErrorCode resp;
         std::string errstr;
@@ -518,7 +516,7 @@ void Parser::RunTests()
     PGW_CDR cdr4;
     cdr4.ChargingID = 1149416178;
     cdr4.FirstUsageTime = time(nullptr);
-    cdr4.IMEI.set_string("867025020224690");
+    cdr4.IMEI.set_string(std::string("3528110418064903"));
     cdr4.IMSI = 250270100113797;
     cdr4.MSISDN = 79047166648;
     cdr4.SequenceNumber.set_int(357);
@@ -575,6 +573,7 @@ void Parser::RunTests()
     std::cout << "Sleeping 35 sec .... " << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(35));
     cdr4.IMSI = 250270100113797;
+    cdr4.IMEI.set_string("3528110418064903");
     cdr4.FirstUsageTime = time(nullptr);
     cdr4.VolumeDownlink = 600;
     cdr4.VolumeUplink = 400;

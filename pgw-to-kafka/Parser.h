@@ -132,7 +132,7 @@ private:
     bool CompareSentAndConsumedRecords(int64_t startOffset);
     void PrintAvroCdrContents(const PGW_CDR& cdr) const;
     void RunTests();
-    PGW_CDR ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex);
+    void ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex, PGW_CDR& avroCdr);
     int EncodeAvro(const PGW_CDR& avroCdr, avro::OutputStream* out);
     void ReadEncodedAvroCdr(avro::OutputStream* out, size_t byteCount, std::vector<uint8_t> &rawData);
     std::vector<uint8_t> EncodeCdr(const PGW_CDR& avroCdr);
