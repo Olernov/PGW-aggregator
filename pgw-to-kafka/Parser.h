@@ -110,7 +110,7 @@ private:
     std::string cdrArchiveDirectory;
     std::string cdrBadDirectory;
     std::string postponeReason;
-    const int producerPollTimeoutMs = 3000;
+    const int producerPollTimeoutMs = 1000;
     const int queueSizeThreshold = 20;
     std::string shutdownFilePath;
 

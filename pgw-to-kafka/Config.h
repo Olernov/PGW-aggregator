@@ -4,6 +4,7 @@
 #include <fstream>
 #include <algorithm>
 #include "LogWriter.h"
+#include "Common.h"
 
 struct Config
 {

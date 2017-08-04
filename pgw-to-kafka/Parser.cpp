@@ -55,7 +55,11 @@ Parser::Parser(const std::string &kafkaBroker, const std::string &kafkaTopic, un
     std::string errstr;
     if (kafkaGlobalConf->set("bootstrap.servers", kafkaBroker, errstr) != RdKafka::Conf::CONF_OK
             || kafkaGlobalConf->set("group.id", "pgw-emitter", errstr) != RdKafka::Conf::CONF_OK
-            || kafkaGlobalConf->set("api.version.request", "true", errstr) != RdKafka::Conf::CONF_OK) {
+            || kafkaGlobalConf->set("api.version.request", "true", errstr) != RdKafka::Conf::CONF_OK
+            || kafkaGlobalConf->set("socket.keepalive.enable", "true", errstr) != RdKafka::Conf::CONF_OK) {
+        throw std::runtime_error("Failed to set kafka global conf: " + errstr);
+    }
+    if (runTest && kafkaGlobalConf->set("debug", "all", errstr) != RdKafka::Conf::CONF_OK) {
         throw std::runtime_error("Failed to set kafka global conf: " + errstr);
     }
     kafkaGlobalConf->set("event_cb", &eventCb, errstr);
@@ -74,7 +78,7 @@ bool Parser::IsReady()
 {
     postponeReason.clear();
     kafkaProducer->poll(0);
-    if (kafkaProducer->outq_len() > 0) {
+    if (kafkaProducer->outq_len() > 5000) {
         postponeReason = std::to_string(kafkaProducer->outq_len()) + " unsent messages in Kafka queue";
     }
 
@@ -355,8 +359,10 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
         std::unique_ptr<RdKafka::Message> message(consumer->consume(topic.get(), kafkaPartition, 5000));
         RdKafka::MessageTimestamp mt = message->timestamp();
         if (message->err() == RdKafka::ERR__TIMED_OUT) {
-            // consider we have read all records
-            break;
+            if (consumed > 0) {
+                // consider we have read all records
+                break;
+            }
         }
         if (message->err() == RdKafka::ERR_NO_ERROR) {
             consumed++;
