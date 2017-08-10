@@ -5,6 +5,7 @@ include_directories(~/projects/PGW_aggregation/PGW_aggregator)
 include_directories(~/projects/PGW_aggregation/ASN)
 include_directories(~/projects/PGW_aggregation/ASN/skeletons)
 include_directories(~/projects/PGW_aggregation/Common)
+include_directories(~/projects/Common)
 include_directories(/usr/lib/oracle/12.1/client64/include)
 include_directories(/usr/include/boost)
 
@@ -12,6 +13,7 @@ aux_source_directory(. SRC_LIST)
 aux_source_directory(../ASN SRC_LIST)
 aux_source_directory(../ASN/skeletons SRC_LIST)
 aux_source_directory(../Common SRC_LIST)
+aux_source_directory(../../Common SRC_LIST)
 #add_definitions(-DEMIT_ASN_DEBUG)
 
 # set the path to the library folder

@@ -320,7 +320,7 @@ int Parser::SendRecordToKafka(const PGWRecord& pGWRecord)
         else {
             sent++;
             if (runTest) {
-                auto res = sentAvroCdrs.insert(avroCdr);
+                sentAvroCdrs.insert(avroCdr);
                 auto it = sentAvroCdrs.find(avroCdr);
                 assert (it != sentAvroCdrs.end());
             }
@@ -357,7 +357,6 @@ bool Parser::CompareSentAndConsumedRecords(int64_t startOffset)
     bool failedToFindCdr = false;
     while(true) {
         std::unique_ptr<RdKafka::Message> message(consumer->consume(topic.get(), kafkaPartition, 5000));
-        RdKafka::MessageTimestamp mt = message->timestamp();
         if (message->err() == RdKafka::ERR__TIMED_OUT) {
             if (consumed > 0) {
                 // consider we have read all records

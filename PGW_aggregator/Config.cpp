@@ -1,5 +1,6 @@
 #include <boost/filesystem.hpp>
 #include "Config.h"
+#include "Common.h"
 
 using namespace boost;
 

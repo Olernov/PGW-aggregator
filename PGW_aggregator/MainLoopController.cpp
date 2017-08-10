@@ -22,7 +22,6 @@ MainLoopController::MainLoopController(const std::string &connectString, const s
 
 void MainLoopController::Run()
 {
-    filesystem::path cdrPath(cdrFilesDirectory);
     bool allCdrProcessed = false;
     std::string lastPostponeReason;
     time_t lastCdrFileTime = time(nullptr);
@@ -30,17 +29,15 @@ void MainLoopController::Run()
     while(!IsShutdownFlagSet()) {
         try {
             parser.RefreshExportRulesIfNeeded();
-            filesystem::directory_iterator endIterator;
-            bool filesFound = false;
-            for(filesystem::directory_iterator dirIterator(cdrPath); dirIterator != endIterator; dirIterator++) {
-                if (filesystem::is_regular_file(dirIterator->status()) &&
-                        dirIterator->path().extension() == cdrExtension) {
-                    filesFound = true;
-                    allCdrProcessed = false;
+            fileList sourceFiles;
+            ConstructSortedFileList(cdrFilesDirectory, cdrExtension, sourceFiles);
+            if (sourceFiles.size() > 0) {
+                allCdrProcessed = false;
+                for (auto& file : sourceFiles) {
                     lastCdrFileTime = time(nullptr);
                     if (parser.IsReady()) {
                         lastPostponeReason.clear();
-                        parser.ProcessFile(dirIterator->path());
+                        parser.ProcessFile(file);
                     }
                     else {
                         if (lastPostponeReason != parser.GetPostponeReason()) {
@@ -55,7 +52,7 @@ void MainLoopController::Run()
                     parser.RefreshExportRulesIfNeeded();
                 }
             }
-            if (!filesFound) {
+            if (sourceFiles.size() > 0) {
                 if (!allCdrProcessed) {
                     allCdrProcessed = true;
                     logWriter << "All CDR files processed.";
@@ -78,6 +75,21 @@ void MainLoopController::Run()
         }
     }
     logWriter << "Shutting down ...";
+}
+
+void MainLoopController::ConstructSortedFileList(const std::string& inputDir,
+                                                 const std::string& cdrExtension,
+                                                 fileList& sourceFiles)
+{
+    filesystem::path inputPath(inputDir);
+    filesystem::directory_iterator endIterator;
+    for(filesystem::directory_iterator iter(inputPath); iter != endIterator; iter++) {
+        if (filesystem::is_regular_file(iter->status())
+                && iter->path().extension() == cdrExtension) {
+            sourceFiles.push_back(iter->path());
+        }
+    }
+    std::sort(sourceFiles.begin(), sourceFiles.end());
 }
 
 

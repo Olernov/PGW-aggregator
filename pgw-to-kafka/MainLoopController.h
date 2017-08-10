@@ -13,6 +13,7 @@ public:
     void SetPrintContents(bool printContents);
     ~MainLoopController();
 private:
+    typedef std::vector<filesystem::path> fileList;
     Parser parser;
     std::string cdrFilesDirectory;
     std::string cdrExtension;
@@ -23,6 +24,9 @@ private:
     bool printFileContents;
     bool stopFlag;
 
+    void ConstructSortedFileList(const std::string& inputDir,
+                                                     const std::string& cdrExtension,
+                                                     fileList& sourceFiles);
     bool IsShutdownFlagSet();
     void Sleep();
 };

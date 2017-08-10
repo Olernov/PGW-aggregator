@@ -52,7 +52,6 @@ fileList ConstructSortedFileList(const std::string& inputDir)
     std::vector<filesystem::path> sourceFiles;
     for(filesystem::directory_iterator dirIterator(inputPath); dirIterator != endIterator; dirIterator++) {
         if (filesystem::is_regular_file(dirIterator->status())) {
-           // filesystem::path file = dirIterator->path();
             sourceFiles.push_back(dirIterator->path());
         }
     }
