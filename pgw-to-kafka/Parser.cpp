@@ -522,7 +522,7 @@ void Parser::RunTests()
     cdr4.ChargingID = 1149416178;
     cdr4.FirstUsageTime = time(nullptr);
     cdr4.IMEI.set_string(std::string("3528110418064903"));
-    cdr4.IMSI = 250270100113797;
+    cdr4.IMSI = 250270100836894;
     cdr4.MSISDN = 79047166648;
     cdr4.SequenceNumber.set_int(357);
     cdr4.ServedPDPAddress = 179861293;

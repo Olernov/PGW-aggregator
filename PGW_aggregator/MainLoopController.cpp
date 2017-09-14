@@ -52,7 +52,7 @@ void MainLoopController::Run()
                     parser.RefreshExportRulesIfNeeded();
                 }
             }
-            if (sourceFiles.size() > 0) {
+            if (sourceFiles.empty()) {
                 if (!allCdrProcessed) {
                     allCdrProcessed = true;
                     logWriter << "All CDR files processed.";
