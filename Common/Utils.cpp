@@ -80,7 +80,7 @@ unsigned64 Utils::TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDString)
 
 
 
-unsigned32 Utils::IPAddress_to_ULong(const IPAddress* pIPAddress)
+unsigned32 Utils::IPAddress_to_ULong(const IPAddress_t* pIPAddress)
 {
     if (!pIPAddress) {
         throw std::runtime_error("Empty IP address given (NULL pointer)");

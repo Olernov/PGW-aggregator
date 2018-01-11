@@ -72,7 +72,7 @@ void Aggregator::ProcessCDRQueue()
         MapSizeReportIfNeeded();
         GPRSRecord* gprsRecord;
         if (cdrQueue.pop(gprsRecord)) {
-            ProcessCDR(gprsRecord->choice.pGWRecord);
+            ProcessCDR(gprsRecord->choice.pgwRecord);
             exceptionText.clear();
             ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
         }
@@ -139,7 +139,7 @@ void Aggregator::CreateSessions(const PGWRecord& pGWRecord, const DataVolumesMap
 SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsigned32 ratingGroup,
                                unsigned32 volumeUplink, unsigned32 volumeDownlink)
 {
-    unsigned64 imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
+    unsigned64 imsi = Utils::TBCDString_to_ULongLong(&pGWRecord.servedIMSI);
     return sessions.insert(std::make_pair(pGWRecord.chargingID,
         Session_ptr(new Session(
            pGWRecord.chargingID,
@@ -148,8 +148,9 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
            Utils::TBCDString_to_String(pGWRecord.servedIMEISV),
            (pGWRecord.accessPointNameNI ? reinterpret_cast<const char*>(pGWRecord.accessPointNameNI->buf) : ""),
 		   pGWRecord.duration,
-		   Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress.list.array[0]),
-		   Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
+           Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress ?
+                                         pGWRecord.servingNodeAddress->list.array[0] : nullptr),
+           Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
 		   ratingGroup,
 		   volumeUplink,
 		   volumeDownlink,

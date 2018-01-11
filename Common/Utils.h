@@ -14,7 +14,7 @@ class Utils
  public:
 	static unsigned64 TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDString);
     static std::string TBCDString_to_String(const TBCD_STRING_t* pTBCDString);
-	static unsigned32 IPAddress_to_ULong(const IPAddress* pIPAddress);
+    static unsigned32 IPAddress_to_ULong(const IPAddress_t* pIPAddress);
     static std::string BinIPAddress_to_Text(unsigned32 ipAddress);
 	static unsigned32 PLMNID_to_ULong(const PLMN_Id_t* pPLMNID);
 	static time_t Timestamp_to_time_t(const TimeStamp_t* pTimestamp);
