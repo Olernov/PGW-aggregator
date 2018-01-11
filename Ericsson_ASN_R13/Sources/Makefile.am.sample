@@ -1,0 +1,163 @@
+ASN_MODULE_SOURCES=	\
+	GPRSRecord.c	\
+	PGWRecord.c	\
+	RecordType.c	\
+	AccessPointNameNI.c	\
+	AddressString.c	\
+	AFChargingIdentifier.c	\
+	AFRecordInformation.c	\
+	APNSelectionMode.c	\
+	CallDuration.c	\
+	CauseForRecClosing.c	\
+	ChangeCondition.c	\
+	ChangeOfCharCondition.c	\
+	ChangeOfServiceCondition.c	\
+	ChargingCharacteristics.c	\
+	ChargingID.c	\
+	ChChSelectionMode.c	\
+	DataVolumeGPRS.c	\
+	DynamicAddressFlag.c	\
+	EPCQoSInformation.c	\
+	EventBasedChargingInformation.c	\
+	FailureHandlingContinue.c	\
+	FFDAppendIndicator.c	\
+	FreeFormatData.c	\
+	GSNAddress.c	\
+	IMEI.c	\
+	IMSI.c	\
+	IPAddress.c	\
+	IPBinaryAddress.c	\
+	ISDN-AddressString.c	\
+	LocalSequenceNumber.c	\
+	ManagementExtensions.c	\
+	ManagementExtension.c	\
+	MSISDN.c	\
+	MSTimeZone.c	\
+	NodeID.c	\
+	PDPAddress.c	\
+	PDPType.c	\
+	PLMN-Id.c	\
+	PSFurnishChargingInformation.c	\
+	QoSInformation.c	\
+	RatingGroupId.c	\
+	RATType.c	\
+	ResultCode.c	\
+	ServiceConditionChange.c	\
+	ServiceIdentifier.c	\
+	TBCD-STRING.c	\
+	TimeStamp.c	\
+	GprsCdrExtensions.c	\
+	ActiveTimeMethod.c	\
+	CreditControlFailureReport.c	\
+	CreditControlInfo.c	\
+	CreditRequestType.c	\
+	CreditRequestStatus.c	\
+	CreditResultCode.c	\
+	PolicyControlFailureReport.c	\
+	PolicyControlInfo.c	\
+	PolicyRequestType.c	\
+	PolicyRequestStatus.c	\
+	PolicyResultCode.c	\
+	RatingGroup.c	\
+	ServiceContainer.c	\
+	ServingNodeType.c	\
+	TimeReport.c	\
+	URI.c
+
+ASN_MODULE_HEADERS=	\
+	GPRSRecord.h	\
+	PGWRecord.h	\
+	RecordType.h	\
+	AccessPointNameNI.h	\
+	AddressString.h	\
+	AFChargingIdentifier.h	\
+	AFRecordInformation.h	\
+	APNSelectionMode.h	\
+	CallDuration.h	\
+	CauseForRecClosing.h	\
+	ChangeCondition.h	\
+	ChangeOfCharCondition.h	\
+	ChangeOfServiceCondition.h	\
+	ChargingCharacteristics.h	\
+	ChargingID.h	\
+	ChChSelectionMode.h	\
+	DataVolumeGPRS.h	\
+	DynamicAddressFlag.h	\
+	EPCQoSInformation.h	\
+	EventBasedChargingInformation.h	\
+	FailureHandlingContinue.h	\
+	FFDAppendIndicator.h	\
+	FreeFormatData.h	\
+	GSNAddress.h	\
+	IMEI.h	\
+	IMSI.h	\
+	IPAddress.h	\
+	IPBinaryAddress.h	\
+	ISDN-AddressString.h	\
+	LocalSequenceNumber.h	\
+	ManagementExtensions.h	\
+	ManagementExtension.h	\
+	MSISDN.h	\
+	MSTimeZone.h	\
+	NodeID.h	\
+	PDPAddress.h	\
+	PDPType.h	\
+	PLMN-Id.h	\
+	PSFurnishChargingInformation.h	\
+	QoSInformation.h	\
+	RatingGroupId.h	\
+	RATType.h	\
+	ResultCode.h	\
+	ServiceConditionChange.h	\
+	ServiceIdentifier.h	\
+	TBCD-STRING.h	\
+	TimeStamp.h	\
+	GprsCdrExtensions.h	\
+	ActiveTimeMethod.h	\
+	CreditControlFailureReport.h	\
+	CreditControlInfo.h	\
+	CreditRequestType.h	\
+	CreditRequestStatus.h	\
+	CreditResultCode.h	\
+	PolicyControlFailureReport.h	\
+	PolicyControlInfo.h	\
+	PolicyRequestType.h	\
+	PolicyRequestStatus.h	\
+	PolicyResultCode.h	\
+	RatingGroup.h	\
+	ServiceContainer.h	\
+	ServingNodeType.h	\
+	TimeReport.h	\
+	URI.h
+
+
+
+lib_LTLIBRARIES=libsomething.la
+libsomething_la_SOURCES=$(ASN_MODULE_SOURCES) $(ASN_MODULE_HEADERS)
+
+# This file may be used as an input for make(3)
+# Remove the lines below to convert it into a pure .am file
+TARGET = progname
+CFLAGS += -I.
+OBJS=${ASN_MODULE_SOURCES:.c=.o} ${ASN_CONVERTER_SOURCES:.c=.o}
+
+all: $(TARGET)
+
+$(TARGET): ${OBJS}
+	$(CC) $(CFLAGS) -o $(TARGET) ${OBJS} $(LDFLAGS) $(LIBS)
+
+.SUFFIXES:
+.SUFFIXES: .c .o
+
+.c.o:
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+clean:
+	rm -f $(TARGET)
+	rm -f $(OBJS)
+
+regen: regenerate-from-asn1-source
+
+regenerate-from-asn1-source:
+	/home/oleg/projects/asn1c-fixed/asn1c/asn1c ./pgw-r13.asn
+
