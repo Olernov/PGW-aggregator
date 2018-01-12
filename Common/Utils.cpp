@@ -87,18 +87,14 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress_t* pIPAddress)
     }
     unsigned32 ip_addr_ulong = 0;
     std::string textIP;
-	unsigned int next_octet; // not uint8_t cause we will control 8-bit overflow
-	uint8_t num_octets;
 	switch(pIPAddress->present) {
-	case IPAddress_PR_iPBinaryAddress:
-		switch (pIPAddress->choice.iPBinaryAddress.present) {
-		case IPBinaryAddress_PR_iPBinV4Address:
-			if (pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.size > 4)
+        case IPBinaryAddress_PR_iPBinV4Address:
+            if (pIPAddress->choice.iPBinV4Address.size > 4)
                 throw std::runtime_error("IPv4 address consists more than of 4 bytes: " +
-                    PrintBinaryDump(&pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address));
-			for (int i =0; i < pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.size; i++) {
+                    PrintBinaryDump(&pIPAddress->choice.iPBinV4Address));
+            for (int i =0; i < pIPAddress->choice.iPBinV4Address.size; i++) {
 				ip_addr_ulong <<= 8;
-				ip_addr_ulong |= pIPAddress->choice.iPBinaryAddress.choice.iPBinV4Address.buf[i];
+                ip_addr_ulong |= pIPAddress->choice.iPBinV4Address.buf[i];
 			}
 			break;
 		case IPBinaryAddress_PR_iPBinV6Address:
@@ -106,44 +102,6 @@ unsigned32 Utils::IPAddress_to_ULong(const IPAddress_t* pIPAddress)
             throw std::runtime_error("IPv6 parsing not implemented.");
 		case IPBinaryAddress_PR_NOTHING:
 			return emptyValueUL;
-		}
-		break;
-	case IPAddress_PR_iPTextRepresentedAddress:
-		switch (pIPAddress->choice.iPTextRepresentedAddress.present) {
-		case IPTextRepresentedAddress_PR_iPTextV4Address:
-			textIP = (const char*) pIPAddress->choice.iPTextRepresentedAddress.choice.iPTextV4Address.buf;
-			next_octet = 0;
-			num_octets = 0;
-			for (char c : textIP) {
-				if (c >= '0' && c <= '9') {
-					next_octet *= 10;
-					next_octet += c - '0';
-					if (next_octet > 0xFF)
-                        throw std::runtime_error("Wrong text represented IP address given: " + textIP);
-				}
-				else if (c == '.') {
-					ip_addr_ulong <<= 8;
-					ip_addr_ulong |= next_octet;
-					if(++num_octets > 4)
-                        throw std::runtime_error("Wrong text represented IP address given: "+ textIP);
-					next_octet = 0;
-				}
-				else
-                    throw std::runtime_error("Wrong text represented IP address given: " + textIP);
-			}
-			ip_addr_ulong <<= 8;
-			ip_addr_ulong |= next_octet;
-			if(++num_octets != 4)
-                throw std::runtime_error("Wrong text represented IP address given: " + textIP);
-			break;
-		case IPTextRepresentedAddress_PR_iPTextV6Address:
-            throw std::runtime_error("IPv6 parsing not implemented.");
-        default:
-            throw std::runtime_error("Unknown IPAddress_PR_iPTextRepresentedAddress.");
-		}
-		break;
-	case IPAddress_PR_NOTHING:
-        throw std::runtime_error("Empty IP address given (pIPAddress->present == IPAddress_PR_NOTHING)");
 	}
 	return ip_addr_ulong;
 }
@@ -289,24 +247,21 @@ std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRe
 
 void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesMap& dataVolumes)
 {
-    if (pGWRecord.listOfServiceData == nullptr) {
-        return;
-    }
-    for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
-        auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
+    for(int i = 0; i < pGWRecord.listOfServiceData.list.count; i++) {
+        auto it = dataVolumes.find(pGWRecord.listOfServiceData.list.array[i]->ratingGroup);
         if (it != dataVolumes.end()) {
-            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink)
-                it->second.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
-            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink)
-                it->second.volumeDownlink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
+            if (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink)
+                it->second.volumeUplink += *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink;
+            if (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink)
+                it->second.volumeDownlink += *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink;
         }
         else {
-            dataVolumes.insert(std::make_pair(pGWRecord.listOfServiceData->list.array[i]->ratingGroup,
+            dataVolumes.insert(std::make_pair(pGWRecord.listOfServiceData.list.array[i]->ratingGroup,
                 DataVolumes(
-                    (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink ?
-                        *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink : 0),
-                    (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink ?
-                        *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink : 0))
+                    (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink ?
+                        *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink : 0),
+                    (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink ?
+                        *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink : 0))
                 ));
         }
     }
@@ -446,27 +401,20 @@ bool Utils::PLMNID_to_ULong_Test()
 
 bool Utils::IPAddress_to_ULong_Test()
 {
-    const IPAddress test_ips[] = {
-        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xB9\x06\x50\x0A", 4)}}},
-        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF", 4)}}},
-        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV4Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8)}}},
-        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_iPBinV6Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xFF\xFF\xFF\xFF", 4)}}},
-        {IPAddress_PR_iPBinaryAddress, {IPBinaryAddress_PR_NOTHING,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "", 0)}}},
-        {IPAddress_PR_NOTHING, {IPBinaryAddress_PR_iPBinV4Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinV4Address, "\xB9\x06\x50\x0A", 4)}}},
-        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "172.18.1.0", 10)}}}},
-        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "1.18.99.255", 11)}}}},
-        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV4Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "11899.255", 9)}}}},
-        {IPAddress_PR_iPTextRepresentedAddress, { .iPTextRepresentedAddress = {IPTextRepresentedAddress_PR_iPTextV6Address,
-                                        {*OCTET_STRING_new_fromBuf(&asn_DEF_IPTextRepresentedAddress, "172.18.1.0", 10)}}}}
+    const IPAddress_t test_ips[] = {
+        {IPBinaryAddress_PR_iPBinV4Address,
+             {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinaryAddress, "\xB9\x06\x50\x0A", 4)}},
+        {IPBinaryAddress_PR_iPBinV4Address,
+            {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinaryAddress, "\xFF\xFF\xFF\xFF", 4)}},
+        {IPBinaryAddress_PR_iPBinV4Address,
+            {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinaryAddress, "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8)}},
+        {IPBinaryAddress_PR_iPBinV6Address,
+            {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinaryAddress, "\xFF\xFF\xFF\xFF", 4)}},
+        {IPBinaryAddress_PR_NOTHING,
+            {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinaryAddress, "", 0)}},
+        {IPBinaryAddress_PR_iPBinV4Address,
+            {*OCTET_STRING_new_fromBuf(&asn_DEF_IPBinaryAddress, "\xB9\x06\x50\x0A", 4)}}
+
     };
     const unsigned64 exception_sign = 0xFFFFFFFFFFFFFFFF;
     const unsigned64 correct_results [] =
@@ -474,7 +422,7 @@ bool Utils::IPAddress_to_ULong_Test()
     bool success = true;
 
     int i = 0;
-    for (/*int i = 0; i < test_num; i++*/const IPAddress& testIPAddr : test_ips) {
+    for (const IPAddress_t& testIPAddr : test_ips) {
         try {
             unsigned32 res = IPAddress_to_ULong(&testIPAddr);
             if (res != correct_results[i]) {

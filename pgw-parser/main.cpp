@@ -150,10 +150,10 @@ int main(int argc, char* argv[])
 
             bool filterFit = true;
             if (imsiFilter != 0 &&
-                    Utils::TBCDString_to_ULongLong(gprsRecord->choice.pGWRecord.servedIMSI) != imsiFilter) {
+                    Utils::TBCDString_to_ULongLong(&gprsRecord->choice.pgwRecord.servedIMSI) != imsiFilter) {
                 filterFit = false;
             }
-            if (filterFit && chargingIdFilter != 0 && gprsRecord->choice.pGWRecord.chargingID
+            if (filterFit && chargingIdFilter != 0 && gprsRecord->choice.pgwRecord.chargingID
                         != chargingIdFilter) {
                 filterFit = false;
             }
@@ -161,20 +161,20 @@ int main(int argc, char* argv[])
                 if (asn_fprint(fileContents, &asn_DEF_GPRSRecord, gprsRecord) != 0) {
                     std::cerr << "Error while calling asn_fprintf for " << file.string() << std::endl;
                 }
-                time_t recOpenTime = Utils::Timestamp_to_time_t(&gprsRecord->choice.pGWRecord.recordOpeningTime);
+                time_t recOpenTime = Utils::Timestamp_to_time_t(&gprsRecord->choice.pgwRecord.recordOpeningTime);
                 tm* timeInfo = localtime(&recOpenTime);
                 if (fprintf(fileContents, "---- Binary fields decode: ----\n"
                             "\tIMSI:\t\t\t%llu\n"
                             "\tMSISDN:\t\t\t%llu\n"
                             "\trecordOpeningTime:\t%s\n"
                             "--------------------------------------\n\n",
-                            Utils::TBCDString_to_ULongLong(gprsRecord->choice.pGWRecord.servedIMSI),
-                            Utils::TBCDString_to_ULongLong(gprsRecord->choice.pGWRecord.servedMSISDN),
+                            Utils::TBCDString_to_ULongLong(&gprsRecord->choice.pgwRecord.servedIMSI),
+                            Utils::TBCDString_to_ULongLong(gprsRecord->choice.pgwRecord.servedMSISDN),
                             asctime(timeInfo)) < 0) {
                     std::cerr << "Error while calling fprintf for " << file.string() << std::endl;
                 }
                 if (filterSet()) {
-                    Utils::SumDataVolumesByRatingGroup(gprsRecord->choice.pGWRecord, dataVolumes);
+                    Utils::SumDataVolumesByRatingGroup(gprsRecord->choice.pgwRecord, dataVolumes);
                 }
             }
             nextChunk += rval.consumed;
