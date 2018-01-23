@@ -78,7 +78,20 @@ unsigned64 Utils::TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDString)
     return res;
 }
 
-
+unsigned64 Utils::MSISDN_to_ULongLong(const TBCD_STRING_t* pMSISDNString)
+{
+    if (pMSISDNString->size > 1) {
+        OCTET_STRING_t* msisdn = OCTET_STRING_new_fromBuf(&asn_DEF_OCTET_STRING,
+            reinterpret_cast<char*>(pMSISDNString->buf) + 1,
+            pMSISDNString->size - 1);
+         unsigned64 res = TBCDString_to_ULongLong(msisdn);
+         ASN_STRUCT_FREE(asn_DEF_OCTET_STRING, msisdn);
+         return res;
+    }
+    else {
+        return emptyValueULL;
+    }
+}
 
 unsigned32 Utils::IPAddress_to_ULong(const IPAddress_t* pIPAddress)
 {
@@ -247,21 +260,21 @@ std::map<unsigned32, DataVolumes> Utils::SumDataVolumesByRatingGroup(const PGWRe
 
 void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesMap& dataVolumes)
 {
-    for(int i = 0; i < pGWRecord.listOfServiceData.list.count; i++) {
-        auto it = dataVolumes.find(pGWRecord.listOfServiceData.list.array[i]->ratingGroup);
+    for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
+        auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
         if (it != dataVolumes.end()) {
-            if (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink)
-                it->second.volumeUplink += *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink;
-            if (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink)
-                it->second.volumeDownlink += *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink;
+            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink)
+                it->second.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
+            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink)
+                it->second.volumeDownlink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
         }
         else {
-            dataVolumes.insert(std::make_pair(pGWRecord.listOfServiceData.list.array[i]->ratingGroup,
+            dataVolumes.insert(std::make_pair(pGWRecord.listOfServiceData->list.array[i]->ratingGroup,
                 DataVolumes(
-                    (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink ?
-                        *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink : 0),
-                    (pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink ?
-                        *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink : 0))
+                    (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink ?
+                        *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink : 0),
+                    (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink ?
+                        *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink : 0))
                 ));
         }
     }

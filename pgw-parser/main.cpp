@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
                             "\trecordOpeningTime:\t%s\n"
                             "--------------------------------------\n\n",
                             Utils::TBCDString_to_ULongLong(&gprsRecord->choice.pgwRecord.servedIMSI),
-                            Utils::TBCDString_to_ULongLong(gprsRecord->choice.pgwRecord.servedMSISDN),
+                            Utils::MSISDN_to_ULongLong(gprsRecord->choice.pgwRecord.servedMSISDN),
                             asctime(timeInfo)) < 0) {
                     std::cerr << "Error while calling fprintf for " << file.string() << std::endl;
                 }

@@ -13,6 +13,7 @@ class Utils
 {
  public:
 	static unsigned64 TBCDString_to_ULongLong(const TBCD_STRING_t* pTBCDString);
+    static unsigned64 MSISDN_to_ULongLong(const TBCD_STRING_t* pMSISDNString);
     static std::string TBCDString_to_String(const TBCD_STRING_t* pTBCDString);
     static unsigned32 IPAddress_to_ULong(const IPAddress_t* pIPAddress);
     static std::string BinIPAddress_to_Text(unsigned32 ipAddress);
