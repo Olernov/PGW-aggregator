@@ -113,8 +113,8 @@ void Parser::ParseFile(FILE *pgwFile, const std::string& filename, CdrFileTotals
             asn_fprint(fileContents, &asn_DEF_GPRSRecord, gprsRecord);
         }
         nextChunk += rval.consumed;
-        if (gprsRecord->present == GPRSRecord_PR_pgwRecord /*&& gprsRecord->choice.pgwRecord.servedIMSI &&
-                gprsRecord->choice.pgwRecord.listOfServiceData*/) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
+        if (gprsRecord->present == GPRSRecord_PR_pgwRecord /*&& gprsRecord->choice.pgwRecord.servedIMSI */&&
+                gprsRecord->choice.pgwRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
             AccumulateStats(totals, gprsRecord->choice.pgwRecord);
             auto& aggr = GetAppropiateAggregator(gprsRecord);
             aggr.AddCdrToQueue(gprsRecord);
@@ -140,9 +140,9 @@ Aggregator& Parser::GetAppropiateAggregator(const GPRSRecord* gprsRecord)
 
 void Parser::AccumulateStats(CdrFileTotals& totals, const PGWRecord& pGWRecord)
 {
-    for(int i = 0; i < pGWRecord.listOfServiceData.list.count; i++) {
-        totals.volumeUplink += *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCUplink;
-        totals.volumeDownlink += *pGWRecord.listOfServiceData.list.array[i]->datavolumeFBCDownlink;
+    for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
+        totals.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
+        totals.volumeDownlink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
     }
     totals.recordCount++;
     time_t cdrTime = Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime);

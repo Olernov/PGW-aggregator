@@ -385,14 +385,14 @@ static asn_TYPE_member_t asn_MBR_PGWRecord_1[] = {
 		0,
 		"iMSsignalingContext"
 		},
-	{ ATF_POINTER, 16, offsetof(struct PGWRecord, servinggNodePLMNIdentifier),
+	{ ATF_POINTER, 16, offsetof(struct PGWRecord, servingNodePLMNIdentifier),
 		(ASN_TAG_CLASS_CONTEXT | (27 << 2)),
 		-1,	/* IMPLICIT tag at current level */
 		&asn_DEF_PLMN_Id,
 		0,	/* Defer constraints checking to the member type */
 		0,	/* PER is not compiled, use -gen-PER */
 		0,
-		"servinggNodePLMNIdentifier"
+		"servingNodePLMNIdentifier"
 		},
 	{ ATF_POINTER, 15, offsetof(struct PGWRecord, pSFurnishChargingInformation),
 		(ASN_TAG_CLASS_CONTEXT | (28 << 2)),
@@ -556,7 +556,7 @@ static const asn_TYPE_tag2member_t asn_MAP_PGWRecord_tag2el_1[] = {
     { (ASN_TAG_CLASS_CONTEXT | (23 << 2)), 19, 0, 0 }, /* chargingCharacteristics */
     { (ASN_TAG_CLASS_CONTEXT | (24 << 2)), 20, 0, 0 }, /* chChSelectionMode */
     { (ASN_TAG_CLASS_CONTEXT | (25 << 2)), 21, 0, 0 }, /* iMSsignalingContext */
-    { (ASN_TAG_CLASS_CONTEXT | (27 << 2)), 22, 0, 0 }, /* servinggNodePLMNIdentifier */
+    { (ASN_TAG_CLASS_CONTEXT | (27 << 2)), 22, 0, 0 }, /* servingNodePLMNIdentifier */
     { (ASN_TAG_CLASS_CONTEXT | (28 << 2)), 23, 0, 0 }, /* pSFurnishChargingInformation */
     { (ASN_TAG_CLASS_CONTEXT | (29 << 2)), 24, 0, 0 }, /* servedIMEISV */
     { (ASN_TAG_CLASS_CONTEXT | (30 << 2)), 25, 0, 0 }, /* rATType */

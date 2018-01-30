@@ -72,7 +72,7 @@ typedef enum PGWRecord_PR {
 	PGWRecord_PR_chargingCharacteristics,	/* Member chargingCharacteristics is present */
 	PGWRecord_PR_chChSelectionMode,	/* Member chChSelectionMode is present */
 	PGWRecord_PR_iMSsignalingContext,	/* Member iMSsignalingContext is present */
-	PGWRecord_PR_servinggNodePLMNIdentifier,	/* Member servinggNodePLMNIdentifier is present */
+	PGWRecord_PR_servingNodePLMNIdentifier,	/* Member servingNodePLMNIdentifier is present */
 	PGWRecord_PR_pSFurnishChargingInformation,	/* Member pSFurnishChargingInformation is present */
 	PGWRecord_PR_servedIMEISV,	/* Member servedIMEISV is present */
 	PGWRecord_PR_rATType,	/* Member rATType is present */
@@ -132,7 +132,7 @@ typedef struct PGWRecord {
 	ChargingCharacteristics_t	 chargingCharacteristics;
 	ChChSelectionMode_t	*chChSelectionMode	/* OPTIONAL */;
 	NULL_t	*iMSsignalingContext	/* OPTIONAL */;
-	PLMN_Id_t	*servinggNodePLMNIdentifier	/* OPTIONAL */;
+	PLMN_Id_t	*servingNodePLMNIdentifier	/* OPTIONAL */;
 	struct PSFurnishChargingInformation	*pSFurnishChargingInformation	/* OPTIONAL */;
 	IMEI_t	*servedIMEISV	/* OPTIONAL */;
 	RATType_t	*rATType	/* OPTIONAL */;

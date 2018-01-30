@@ -29,7 +29,7 @@ PGWRecord ::= SET
   chargingCharacteristics      [23] ChargingCharacteristics,
   chChSelectionMode            [24] ChChSelectionMode OPTIONAL,
   iMSsignalingContext          [25] NULL OPTIONAL,
-  servinggNodePLMNIdentifier   [27] PLMN-Id OPTIONAL,
+  servingNodePLMNIdentifier   [27] PLMN-Id OPTIONAL,
   pSFurnishChargingInformation [28] PSFurnishChargingInformation OPTIONAL,
   servedIMEISV                 [29] IMEI OPTIONAL,
   rATType                      [30] RATType OPTIONAL,

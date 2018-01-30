@@ -144,7 +144,7 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
         Session_ptr(new Session(
            pGWRecord.chargingID,
            imsi,
-		   Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN),
+           Utils::MSISDN_to_ULongLong(pGWRecord.servedMSISDN),
            Utils::TBCDString_to_String(pGWRecord.servedIMEISV),
            (pGWRecord.accessPointNameNI ? reinterpret_cast<const char*>(pGWRecord.accessPointNameNI->buf) : ""),
 		   pGWRecord.duration,
