@@ -6,14 +6,6 @@
 #include "OTL_Header.h"
 #include "DBConnect.h"
 
-//enum SessionStatus
-//{
-//    idle,
-//    updating,
-//    readyForExport,
-//    exporting
-//};
-
 class ExportRules;
 
 class Session

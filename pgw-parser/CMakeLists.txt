@@ -1,6 +1,6 @@
 project(pgw-parser)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -std=c++11 -Wall")
-add_definitions(-DEMIT_ASN_DEBUG=1)
+#add_definitions(-DEMIT_ASN_DEBUG=1)
 cmake_minimum_required(VERSION 2.8)
 include_directories(~/projects/PGW-aggregator/Ericsson_ASN_R13/)
 #include_directories(~/projects/PGW-aggregator/ASN/skeletons)

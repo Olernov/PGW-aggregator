@@ -82,7 +82,7 @@ void Session::ForceExport()
             dbStream.open(1,
                     "call BILLING.MOBILE_DATA_CHARGER.ExportSession(:charging_id /*bigint,in*/, :imsi /*bigint,in*/, :msisdn /*bigint,in*/, "
                     ":imei /*char[20],in*/, :access_point_name /*char[64],in*/, :start_time /*timestamp,in*/, :end_time /*timestamp,in*/,"
-                    ":serving_node_ip /*long,in*/, :plmn_id /*long,in*/, "
+                    ":serving_node_ip /*bigint,in*/, :plmn_id /*long,in*/, "
                     ":rating_group /*long,in*/, :data_volume_uplink /*bigint,in*/, :data_volume_downlink /*bigint,in*/) "
                     " into :rate /*double,out*/",
                     dbConnect);
@@ -98,7 +98,7 @@ void Session::ForceExport()
                         << accessPointName
                         << OTL_Utils::Time_t_to_OTL_datetime(startTime)
                         << OTL_Utils::Time_t_to_OTL_datetime(endTime)
-                        << static_cast<long>(servingNodeIP)
+                        << static_cast<signed64>(servingNodeIP)
                         << static_cast<long>(servingNodePLMNID)
                         << static_cast<long>(ratingGroup)
                         << static_cast<signed64>(volumeUplinkAggregated)
