@@ -5,7 +5,6 @@
 using namespace boost;
 
 Config::Config() :
-    cdrExtension(".dat"),
     threadCount(8),
     homePlmnID(25027),
     sessionEjectPeriodMin(30),
@@ -70,7 +69,7 @@ void Config::ReadConfigFile(std::ifstream& configStream)
             logDir = option_value;
         }
         else if (option_name == cdrExtensionParamName) {
-            cdrExtension == option_value;
+            cdrExtension = option_value;
         }
         else if (option_name == threadCountParamName) {
             threadCount = ParseULongValue(option_name, option_value);
