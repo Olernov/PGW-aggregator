@@ -77,7 +77,7 @@ int main(int argc, const char* argv[])
         std::cerr << ex.what() <<std::endl;
         exit(EXIT_FAILURE);
     }
-    const std::string pidFilename = "/var/run/pgw-aggregator.pid";
+    const std::string pidFilename = "/var/run/pgw-aggr-ericsson.pid";
     std::ofstream pidFile(pidFilename, std::ofstream::out);
     if (pidFile.is_open()) {
         pidFile << getpid();

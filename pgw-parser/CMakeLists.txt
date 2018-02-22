@@ -5,14 +5,22 @@ cmake_minimum_required(VERSION 2.8)
 include_directories(~/projects/PGW-aggregator/Ericsson_ASN_R13/)
 #include_directories(~/projects/PGW-aggregator/ASN/skeletons)
 include_directories(~/projects/PGW-aggregator/Common)
-include_directories(/usr/include/boost)
+include_directories(/usr/local/boost_1_63_1/include)
 
 aux_source_directory(. SRC_LIST)
 aux_source_directory(../Ericsson_ASN_R13 SRC_LIST)
 #aux_source_directory(../ASN/skeletons SRC_LIST)
 aux_source_directory(../Common SRC_LIST)
 
+link_directories(/usr/local/boost_1_63_1/lib)
+
 add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 target_link_libraries (${PROJECT_NAME} libboost_system.so)
 target_link_libraries (${PROJECT_NAME} libboost_filesystem.so)
+
+install (
+        FILES "${PROJECT_NAME}"
+        DESTINATION "/usr/local/bin"
+)
+
