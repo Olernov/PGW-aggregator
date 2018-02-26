@@ -10,7 +10,8 @@ Config::Config() :
     sessionEjectPeriodMin(30),
     exportRulesRefreshPeriodMin(30),
     noCdrAlertPeriodMin(15),
-    logLevel(notice)
+    logLevel(notice),
+    sourceId(0)
 {
 }
 
@@ -100,6 +101,9 @@ void Config::ReadConfigFile(std::ifstream& configStream)
         else if (option_name == noCdrAlertPeriodParamName) {
             noCdrAlertPeriodMin = ParseULongValue(option_name, option_value);
         }
+        else if (option_name == sourceIdParamName) {
+            sourceId = ParseULongValue(option_name, option_value);
+        }
         else if (!option_name.empty()){
             throw std::runtime_error("Unknown parameter " + option_name + " found");
         }
@@ -166,6 +170,7 @@ std::string Config::DumpAllSettings()
             sessionEjectPeriodParamName + ": " + std::to_string(sessionEjectPeriodMin) + crlf +
             exportRulesRefreshPeriodParamName + ": " + std::to_string(exportRulesRefreshPeriodMin) + crlf +
             logLevelParamName + ": " + (logLevel == error ? "error" : (logLevel == debug ? "debug" : "notice")) + crlf +
-            noCdrAlertPeriodParamName + ": " + std::to_string(noCdrAlertPeriodMin);
+            noCdrAlertPeriodParamName + ": " + std::to_string(noCdrAlertPeriodMin) + crlf +
+            sourceIdParamName + ": " + std::to_string(sourceId) + crlf;
 }
 

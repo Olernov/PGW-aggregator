@@ -4,9 +4,10 @@
 #include "ExportRules.h"
 #include "Session.h"
 #include "LogWriterOtl.h"
+#include "Config.h"
 
 extern LogWriterOtl logWriter;
-
+extern Config config;
 
 Session::Session(unsigned32 chargingID,
     unsigned64 iMSI,
@@ -83,7 +84,8 @@ void Session::ForceExport()
                     "call BILLING.MOBILE_DATA_CHARGER.ExportSession(:charging_id /*bigint,in*/, :imsi /*bigint,in*/, :msisdn /*bigint,in*/, "
                     ":imei /*char[20],in*/, :access_point_name /*char[64],in*/, :start_time /*timestamp,in*/, :end_time /*timestamp,in*/,"
                     ":serving_node_ip /*bigint,in*/, :plmn_id /*long,in*/, "
-                    ":rating_group /*long,in*/, :data_volume_uplink /*bigint,in*/, :data_volume_downlink /*bigint,in*/) "
+                    ":rating_group /*long,in*/, :data_volume_uplink /*bigint,in*/, :data_volume_downlink /*bigint,in*/,"
+                    ":source_id /*long,in*/) "
                     " into :rate /*double,out*/",
                     dbConnect);
                 // WARNING: OTL library does not support unsigned long and unsigned long long datatypes
@@ -102,7 +104,8 @@ void Session::ForceExport()
                         << static_cast<long>(servingNodePLMNID)
                         << static_cast<long>(ratingGroup)
                         << static_cast<signed64>(volumeUplinkAggregated)
-                        << static_cast<signed64>(volumeDownlinkAggregated);
+                        << static_cast<signed64>(volumeDownlinkAggregated)
+                        << static_cast<long>(config.sourceId);
                 double rate = 0;
                 dbStream >> rate;
             dbStream.close();
