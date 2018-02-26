@@ -26,6 +26,7 @@ public:
     unsigned long exportRulesRefreshPeriodMin;
     unsigned long noCdrAlertPeriodMin;
     LogLevel logLevel;
+    unsigned long sourceId;
 private:
     const std::string connectStringParamName = "CONNECT_STRING";
     const std::string inputDirParamName = "INPUT_DIR";
@@ -39,6 +40,7 @@ private:
     const std::string exportRulesRefreshPeriodParamName = "EXPORT_RULES_REFRESH_PERIOD";
     const std::string noCdrAlertPeriodParamName = "NO_CDR_ALERT_PERIOD_MIN";
     const std::string logLevelParamName = "LOG_LEVEL";
+    const std::string sourceIdParamName = "SOURCE_ID";
     const int minThreadCount = 1;
     const int maxThreadCount = 32;
     unsigned long ParseULongValue(const std::string& name, const std::string& value);
