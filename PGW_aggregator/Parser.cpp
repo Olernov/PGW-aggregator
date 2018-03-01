@@ -113,8 +113,8 @@ void Parser::ParseFile(FILE *pgwFile, const std::string& filename, CdrFileTotals
             asn_fprint(fileContents, &asn_DEF_GPRSRecord, gprsRecord);
         }
         nextChunk += rval.consumed;
-        if (gprsRecord->present == GPRSRecord_PR_pgwRecord /*&& gprsRecord->choice.pgwRecord.servedIMSI */&&
-                gprsRecord->choice.pgwRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
+        if (gprsRecord->present == GPRSRecord_PR_pgwRecord && gprsRecord->choice.pgwRecord.listOfServiceData) {
+            // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
             AccumulateStats(totals, gprsRecord->choice.pgwRecord);
             auto& aggr = GetAppropiateAggregator(gprsRecord);
             aggr.AddCdrToQueue(gprsRecord);

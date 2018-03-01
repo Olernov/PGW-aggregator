@@ -6,13 +6,12 @@ include_directories(~/projects/PGW-aggregator/Ericsson_ASN_R13)
 include_directories(~/projects/PGW-aggregator/Common)
 include_directories(~/projects/Common)
 include_directories(/usr/local/include/librdkafka)
-#include_directories($ENV{ORACLE_HOME}/rdbms/public/)
+include_directories($ENV{ORACLE_HOME}/rdbms/public/)
 include_directories($ENV{BOOST_HOME}/include)
 include_directories(/usr/local/include/avro)
 
 aux_source_directory(. SRC_LIST)
 aux_source_directory(../Ericsson_ASN_R13 SRC_LIST)
-#aux_source_directory(../ASN/skeletons SRC_LIST)
 aux_source_directory(../Common SRC_LIST)
 aux_source_directory(../../Common SRC_LIST)
 
@@ -23,7 +22,6 @@ link_directories($ENV{BOOST_HOME}/lib)
 add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 # link the libraries to the executable
-#target_link_libraries (${PROJECT_NAME} libclntsh.so)
 target_link_libraries (${PROJECT_NAME} libboost_system.so)
 target_link_libraries (${PROJECT_NAME} libboost_filesystem.so)
 target_link_libraries (${PROJECT_NAME} librdkafka++.so)

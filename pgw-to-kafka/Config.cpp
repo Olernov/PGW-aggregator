@@ -6,7 +6,6 @@ using namespace boost;
 Config::Config() :
     kafkaTopic("PGW_CDR"),
     kafkaPartition(0),
-    cdrExtension(".dat"),
     noCdrAlertPeriodMin(15),
     logLevel(notice)
 {

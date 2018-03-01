@@ -176,10 +176,9 @@ unsigned32 Parser::ParseFile(FILE *pgwFile, const std::string& filename)
             asn_fprint(fileContents, &asn_DEF_GPRSRecord, gprsRecord);
         }
         nextChunk += rval.consumed;
-        if (gprsRecord->present == GPRSRecord_PR_pGWRecord && gprsRecord->choice.pGWRecord.servedIMSI &&
-                gprsRecord->choice.pGWRecord.listOfServiceData) {
+        if (gprsRecord->present == GPRSRecord_PR_pgwRecord && gprsRecord->choice.pgwRecord.listOfServiceData) {
             // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
-            recordCount += SendRecordToKafka(gprsRecord->choice.pGWRecord);
+            recordCount += SendRecordToKafka(gprsRecord->choice.pgwRecord);
         }
         ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
     }
@@ -207,8 +206,8 @@ void Parser::WaitForKafkaQueue()
 
 void Parser::ConstructAvroCdr(const PGWRecord& pGWRecord, int listIndex, PGW_CDR& avroCdr)
 {
-    avroCdr.IMSI = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
-    avroCdr.MSISDN = Utils::TBCDString_to_ULongLong(pGWRecord.servedMSISDN);
+    avroCdr.IMSI = Utils::TBCDString_to_ULongLong(&pGWRecord.servedIMSI);
+    avroCdr.MSISDN = Utils::MSISDN_to_ULongLong(pGWRecord.servedMSISDN);
 
     if (pGWRecord.servedIMEISV != nullptr) {
         avroCdr.IMEI.set_string(Utils::TBCDString_to_String(pGWRecord.servedIMEISV));

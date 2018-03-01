@@ -5,7 +5,6 @@
 using namespace boost;
 
 Config::Config() :
-    //cdrExtension(".dat"),
     threadCount(8),
     homePlmnID(25027),
     sessionEjectPeriodMin(30),
