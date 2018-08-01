@@ -210,11 +210,9 @@ time_t Utils::Timestamp_to_time_t(const TimeStamp_t* pTimestamp)
 //-- hh = hour 00 to 23 BCD encoded
 //-- mm = minute 00 to 59 BCD encoded
     if (!pTimestamp) {
-        // TODO: unhandled exception
-        throw std::runtime_error("Empty Timestamp given (NULL pointer)");
+        return time_t();
     }
     if (pTimestamp->size != 9) {
-        // TODO: unhandled exception
         throw std::runtime_error("Wrong format of Timestamp given: " + PrintBinaryDump(pTimestamp));
     }
 	tm result;
@@ -237,7 +235,7 @@ bool Utils::Timestamp_to_time_t_Test()
     OCTET_STRING_t* octetStr = OCTET_STRING_new_fromBuf(&asn_DEF_TimeStamp,
         dateStr, strlen(dateStr));
     // TODO: write test
-    return false;
+    return true;
 }
 
 
@@ -264,16 +262,24 @@ void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesM
         return;
     }
     for(int i = 0; i < pGWRecord.listOfServiceData->list.count; i++) {
+        // use timeOfFirstUsage (if present) otherwise use recordOpeningTime
+        auto cdrUsageTime = pGWRecord.listOfServiceData->list.array[i]->timeOfFirstUsage ?
+            Timestamp_to_time_t(pGWRecord.listOfServiceData->list.array[i]->timeOfFirstUsage)
+            : Timestamp_to_time_t(&pGWRecord.recordOpeningTime);
         auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
         if (it != dataVolumes.end()) {
-            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink)
+            it->second.timeOfFirstUsage = std::min(it->second.timeOfFirstUsage, cdrUsageTime);
+            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink) {
                 it->second.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
-            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink)
+            }
+            if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink) {
                 it->second.volumeDownlink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink;
+            }
         }
         else {
             dataVolumes.insert(std::make_pair(pGWRecord.listOfServiceData->list.array[i]->ratingGroup,
                 DataVolumes(
+                    cdrUsageTime,
                     (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink ?
                         *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink : 0),
                     (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink ?
@@ -467,14 +473,62 @@ bool Utils::IPAddress_to_ULong_Test()
 }
 
 
+void Utils::AddToListOfServiceData(PGWRecord* rec, long ratingGroup, const char* timeOfFirstUsage,
+                                   long volumeUplink, long volumeDownlink)
+{
+    ChangeOfServiceCondition* csc = (ChangeOfServiceCondition*) calloc(1, sizeof(ChangeOfServiceCondition));
+    csc->ratingGroup = ratingGroup;
+    if (timeOfFirstUsage != nullptr) {
+        csc->timeOfFirstUsage =
+            OCTET_STRING_new_fromBuf(&asn_DEF_TimeStamp, timeOfFirstUsage, 9);
+    }
+    csc->datavolumeFBCDownlink =
+            (DataVolumeGPRS_t*) calloc(1, sizeof(DataVolumeGPRS_t));
+    *csc->datavolumeFBCDownlink = volumeDownlink;
+    csc->datavolumeFBCUplink =
+            (DataVolumeGPRS_t*) calloc(1, sizeof(DataVolumeGPRS_t));
+    *csc->datavolumeFBCUplink = volumeUplink;
+    ASN_SEQUENCE_ADD(rec->listOfServiceData, csc);
+}
+
+
 bool Utils::SumDataVolumesByRatingGroup_Test()
 {
-    bool success = true;
-    PGWRecord rec;
-    void* ptr = &rec.listOfServiceData;
-    ptr = calloc(1, sizeof(PGWRecord::listOfServiceData));
-    // TODO: write test
-    return success;
+    PGWRecord* rec= (PGWRecord*) calloc(1, sizeof(PGWRecord));
+    rec->listOfServiceData = (struct PGWRecord::listOfServiceData*)
+            calloc(1, sizeof(PGWRecord::listOfServiceData));
+    char recOpenTime[] = { 0x18, 07, 01, 0x10, 00, 00, 00, 03, 00 };
+    OCTET_STRING_fromBuf(&rec->recordOpeningTime, recOpenTime, sizeof(recOpenTime));
+
+    // rating group 1
+    char timeOfFirstUsage1[] = { 0x18, 07, 01, 0x10, 30, 00, 00, 03, 00};
+    AddToListOfServiceData(rec, 1, timeOfFirstUsage1, 1000, 2000);
+
+    // rating group 2
+    char timeOfFirstUsage2[] = { 0x18, 07, 01, 0x11, 00, 00, 00, 03, 00};
+    AddToListOfServiceData(rec, 2, timeOfFirstUsage2, 700, 800);
+
+    // rating group 1 once again
+    char timeOfFirstUsage3[] = { 0x18, 07, 01, 0x10, 10, 00, 00, 03, 00};
+    AddToListOfServiceData(rec, 1, timeOfFirstUsage3, 500, 1000);
+
+    // rating group 2 with no timeOfFirstUsage (recordOpeningTime should be used)
+    AddToListOfServiceData(rec, 2, nullptr, 300, 500);
+
+    auto dataVolumes = SumDataVolumesByRatingGroup(*rec);
+    if (dataVolumes.size() != 2) return false;
+    auto it = dataVolumes.find(1);
+    if (it == dataVolumes.end()) return false;
+    if (it->second.timeOfFirstUsage != 1530429000 || it->second.volumeUplink != 1500
+            || it->second.volumeDownlink != 3000) return false;
+
+    auto it2 = dataVolumes.find(2);
+    if (it2 == dataVolumes.end()) return false;
+    if (it2->second.timeOfFirstUsage != 1530428400 || it2->second.volumeUplink != 1000
+            || it2->second.volumeDownlink != 1300) return false;
+
+    std::cout << "SumDataVolumesByRatingGroup_Test PASSED. " << std::endl;
+    return true;
 }
 
 
@@ -484,6 +538,8 @@ bool Utils::RunAllTests()
     assert(Utils::TBCDString_to_String_Test());
 	assert(Utils::IPAddress_to_ULong_Test());
 	assert(Utils::PLMNID_to_ULong_Test());
+    assert(Utils::Timestamp_to_time_t_Test());
+    assert(Utils::SumDataVolumesByRatingGroup_Test());
     return true;
 }
 

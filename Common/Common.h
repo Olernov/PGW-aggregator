@@ -14,7 +14,6 @@ const int mainThreadIndex = -1;
 
 const unsigned32 megabyteSizeInBytes = 1024 * 1024;
 const int secondsToSleepWhenNothingToDo = 1;
-//const int maxPath = 1000;
 const int maxAttemptsToWriteToDB = 5;
 const size_t maxAlertMessageLen = 2000;
 
@@ -34,14 +33,15 @@ enum AggregationTestType
 };
 
 struct DataVolumes {
-    DataVolumes (unsigned long uplink, unsigned long downlink) :
+    DataVolumes (time_t timeOfFirstUsage, unsigned long uplink, unsigned long downlink) :
+        timeOfFirstUsage(timeOfFirstUsage),
         volumeUplink(uplink),
         volumeDownlink(downlink)
     {}
+    time_t timeOfFirstUsage;
     unsigned long volumeUplink;
     unsigned long volumeDownlink;
 };
 
 typedef std::map<unsigned long, DataVolumes> DataVolumesMap;
 
-//typedef std::function<void(otl_connect&, short)> reconnectFuncType;
