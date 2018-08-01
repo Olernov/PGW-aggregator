@@ -26,6 +26,7 @@ class Utils
     static void SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesMap& dataVolumes);
 
 	static bool RunAllTests();
+
 private:
     static char DecodeTbcdDigit(uint8_t digit);
     static bool TBCDString_to_ULongLong_Test();
@@ -35,6 +36,7 @@ private:
     static bool Timestamp_to_time_t_Test();
     static std::string PrintBinaryDump(const OCTET_STRING* pOctetStr);
 	static unsigned32 BCDString_to_ULong(const uint8_t* pOctetStr, int size);
-    bool SumDataVolumesByRatingGroup_Test();
-
+    static bool SumDataVolumesByRatingGroup_Test();
+    static void AddToListOfServiceData(PGWRecord* rec, long ratingGroup, const char *timeOfFirstUsage,
+                                       long volumeUplink, long volumeDownlink);
 };

@@ -115,8 +115,7 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
                 sessionIter->second.get()->UpdateData(dataVolumeIter->second.volumeUplink,
                                                   dataVolumeIter->second.volumeDownlink,
                                                   pGWRecord.duration,
-                                                  Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime));
-                //ExportIfNeeded(sessionIter->second);
+                                                  dataVolumeIter->second.timeOfFirstUsage);
                 dataVolumes.erase(dataVolumeIter);
             }
         }
@@ -130,6 +129,7 @@ void Aggregator::CreateSessions(const PGWRecord& pGWRecord, const DataVolumesMap
     for (auto dataVolumeIter : dataVolumes) {
         CreateSession(pGWRecord,
                       dataVolumeIter.first /* rating group */,
+                      dataVolumeIter.second.timeOfFirstUsage,
                       dataVolumeIter.second.volumeUplink,
                       dataVolumeIter.second.volumeDownlink);
     }
@@ -137,7 +137,7 @@ void Aggregator::CreateSessions(const PGWRecord& pGWRecord, const DataVolumesMap
 
 
 SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsigned32 ratingGroup,
-                               unsigned32 volumeUplink, unsigned32 volumeDownlink)
+                               time_t sessionStartTime, unsigned32 volumeUplink, unsigned32 volumeDownlink)
 {
     unsigned64 imsi = Utils::TBCDString_to_ULongLong(pGWRecord.servedIMSI);
     return sessions.insert(std::make_pair(pGWRecord.chargingID,
@@ -153,7 +153,7 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
 		   ratingGroup,
 		   volumeUplink,
 		   volumeDownlink,
-           Utils::Timestamp_to_time_t(&pGWRecord.recordOpeningTime),
+           sessionStartTime,
            exportRules,
            dbConnect))));
 }

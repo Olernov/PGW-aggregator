@@ -75,6 +75,7 @@ void Session::ExportIfNeeded()
     }
 }
 
+
 void Session::ForceExport()
 {
     if (HaveDataToExport()) {
@@ -151,8 +152,4 @@ std::string Session::SessionDataDump()
         + "lastUpdateTime: " + Utils::Time_t_to_String(lastUpdateTime) + crlf
         + "lastExportTime: " + Utils::Time_t_to_String(lastExportTime);
 }
-
-
-
-
 

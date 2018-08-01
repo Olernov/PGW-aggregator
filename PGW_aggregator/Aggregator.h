@@ -49,10 +49,8 @@ private:
     time_t lastMapSizeReport;
 
     void CreateSessions(const PGWRecord& pGWRecord, const DataVolumesMap& dataVolumes);
-    SessionMap::iterator CreateSession(const PGWRecord& pGWRecord,
-                       unsigned32 ratingGroup, unsigned32 volumeUplink, unsigned32 volumeDownlink);
-    //void ExportIfNeeded(Session_ptr sessionPtr);
-    //void ExportSession(Session_ptr sessionPtr);
+    SessionMap::iterator CreateSession(const PGWRecord& pGWRecord, unsigned32 ratingGroup,
+                                       time_t sessionStartTime, unsigned32 volumeUplink, unsigned32 volumeDownlink);
     void ExportAllSessionsToDB();
     bool EjectOneIdleSession();
     void MapSizeReportIfNeeded();
