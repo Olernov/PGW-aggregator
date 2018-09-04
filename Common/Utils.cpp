@@ -319,6 +319,18 @@ void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesM
 }
 
 
+std::string Utils::DumpCDRContents(const PGWRecord& pGWRecord)
+{
+    char* cdrContents;
+    size_t cdrContentsSize;
+    FILE* stream = open_memstream(&cdrContents, &cdrContentsSize);
+    asn_fprint(stream, &asn_DEF_PGWRecord, &pGWRecord);
+    fclose(stream);
+    std::string str(cdrContents);
+    free(cdrContents);
+    return str;
+}
+
 //// Tests /////
 
 bool Utils::TBCDString_to_String_Test()

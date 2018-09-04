@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <iostream>
 #include "Aggregator.h"
 #include "Utils.h"
@@ -81,15 +82,15 @@ void Aggregator::ProcessCDRQueue()
                 exceptionText.clear();
             }
             else {
-                logWriter.Write("CDR queue processed and nothing to eject. Sessions count: " + std::to_string(sessions.size()),
-                                thisIndex, debug);
+                logWriter.Write("CDR queue processed and nothing to eject. Sessions count: "
+                                + std::to_string(sessions.size()), thisIndex, debug);
                 std::unique_lock<std::mutex> lock(mutex);
                 conditionVar.wait_for(lock, std::chrono::seconds(secondsToSleepWhenNothingToDo));
             }
         }
     }
-    catch(const std::runtime_error& ex) {
-        // exception is rethrown from Session.
+    catch(const std::exception& ex) {
+        // exception is rethrown from the Session class.
         exceptionText = ex.what();
         logWriter.Write(exceptionText, thisIndex);
         dbConnect.reconnect();
@@ -100,26 +101,34 @@ void Aggregator::ProcessCDRQueue()
 
 void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
 {
-    DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(pGWRecord);
-    auto eqRange = sessions.equal_range(pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
-    if (eqRange.first == eqRange.second) {
-        // not found
-         CreateSessions(pGWRecord, dataVolumes);
-    }
-    else {
-        // one or more sessions having this Charging ID are found, try to find appropriate rating group
-        for (auto sessionIter = eqRange.first; sessionIter != eqRange.second; ++sessionIter) {
-            auto dataVolumeIter = dataVolumes.find(sessionIter->second.get()->ratingGroup);
-            if (dataVolumeIter != dataVolumes.end()) {
-                // session having same rating group found, update values
-                sessionIter->second.get()->UpdateData(dataVolumeIter->second.volumeUplink,
-                                                  dataVolumeIter->second.volumeDownlink,
-                                                  pGWRecord.duration,
-                                                  dataVolumeIter->second.timeOfFirstUsage);
-                dataVolumes.erase(dataVolumeIter);
-            }
+    try {
+        DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(pGWRecord);
+        auto eqRange = sessions.equal_range(pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
+        if (eqRange.first == eqRange.second) {
+            // not found
+             CreateSessions(pGWRecord, dataVolumes);
         }
-        CreateSessions(pGWRecord, dataVolumes);
+        else {
+            // one or more sessions having this Charging ID are found, try to find appropriate rating group
+            for (auto sessionIter = eqRange.first; sessionIter != eqRange.second; ++sessionIter) {
+                auto dataVolumeIter = dataVolumes.find(sessionIter->second.get()->ratingGroup);
+                if (dataVolumeIter != dataVolumes.end()) {
+                    // session having same rating group found, update values
+                    sessionIter->second.get()->UpdateData(dataVolumeIter->second.volumeUplink,
+                                                      dataVolumeIter->second.volumeDownlink,
+                                                      pGWRecord.duration,
+                                                      dataVolumeIter->second.timeOfFirstUsage);
+                    dataVolumes.erase(dataVolumeIter);
+                }
+            }
+            CreateSessions(pGWRecord, dataVolumes);
+        }
+    }
+    catch(const std::exception& ex) {
+        std::string message = "ProcessCDR exception: " + std::string(ex.what()) + crlf
+                + Utils::DumpCDRContents(pGWRecord);
+        logWriter.Write(message, thisIndex);
+        SendAlertIfNeeded(message);
     }
 }
 
