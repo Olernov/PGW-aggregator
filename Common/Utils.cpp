@@ -295,9 +295,13 @@ void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesM
         auto cdrUsageTime = pGWRecord.listOfServiceData->list.array[i]->timeOfFirstUsage ?
             Timestamp_to_time_t(pGWRecord.listOfServiceData->list.array[i]->timeOfFirstUsage)
             : Timestamp_to_time_t(&pGWRecord.recordOpeningTime);
+        // use timeUsage for duration (if present) otherwise use the whole CDR duration
+        auto cdrDuration = pGWRecord.listOfServiceData->list.array[i]->timeUsage ?
+            *pGWRecord.listOfServiceData->list.array[i]->timeUsage : pGWRecord.duration;
         auto it = dataVolumes.find(pGWRecord.listOfServiceData->list.array[i]->ratingGroup);
         if (it != dataVolumes.end()) {
             it->second.timeOfFirstUsage = std::min(it->second.timeOfFirstUsage, cdrUsageTime);
+            it->second.duration += cdrDuration;
             if (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink) {
                 it->second.volumeUplink += *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink;
             }
@@ -309,6 +313,7 @@ void Utils::SumDataVolumesByRatingGroup(const PGWRecord& pGWRecord, DataVolumesM
             dataVolumes.insert(std::make_pair(pGWRecord.listOfServiceData->list.array[i]->ratingGroup,
                 DataVolumes(
                     cdrUsageTime,
+                    cdrDuration,
                     (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink ?
                         *pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCUplink : 0),
                     (pGWRecord.listOfServiceData->list.array[i]->datavolumeFBCDownlink ?
@@ -522,13 +527,17 @@ bool Utils::IPAddress_to_ULong_Test()
 
 
 void Utils::AddToListOfServiceData(PGWRecord* rec, long ratingGroup, const char* timeOfFirstUsage,
-                                   long volumeUplink, long volumeDownlink)
+                                   long duration, long volumeUplink, long volumeDownlink)
 {
     ChangeOfServiceCondition* csc = (ChangeOfServiceCondition*) calloc(1, sizeof(ChangeOfServiceCondition));
     csc->ratingGroup = ratingGroup;
     if (timeOfFirstUsage != nullptr) {
         csc->timeOfFirstUsage =
             OCTET_STRING_new_fromBuf(&asn_DEF_TimeStamp, timeOfFirstUsage, 9);
+    }
+    if (duration != -1) {
+        csc->timeUsage = (CallDuration_t*) calloc(1, sizeof(CallDuration_t));
+        *csc->timeUsage = duration;
     }
     csc->datavolumeFBCDownlink =
             (DataVolumeGPRS_t*) calloc(1, sizeof(DataVolumeGPRS_t));
@@ -547,33 +556,34 @@ bool Utils::SumDataVolumesByRatingGroup_Test()
             calloc(1, sizeof(PGWRecord::listOfServiceData));
     char recOpenTime[] = { 0x18, 07, 01, 0x10, 00, 00, 00, 03, 00 };
     OCTET_STRING_fromBuf(&rec->recordOpeningTime, recOpenTime, sizeof(recOpenTime));
+    rec->duration = 180;
 
     // rating group 1
     char timeOfFirstUsage1[] = { 0x18, 07, 01, 0x10, 30, 00, 00, 03, 00};
-    AddToListOfServiceData(rec, 1, timeOfFirstUsage1, 1000, 2000);
+    AddToListOfServiceData(rec, 1, timeOfFirstUsage1, 10, 1000, 2000);
 
     // rating group 2
     char timeOfFirstUsage2[] = { 0x18, 07, 01, 0x11, 00, 00, 00, 03, 00};
-    AddToListOfServiceData(rec, 2, timeOfFirstUsage2, 700, 800);
+    AddToListOfServiceData(rec, 2, timeOfFirstUsage2, 15, 700, 800);
 
-    // rating group 1 once again
+    // rating group 1 once again having no timeUsage
     char timeOfFirstUsage3[] = { 0x18, 07, 01, 0x10, 10, 00, 00, 03, 00};
-    AddToListOfServiceData(rec, 1, timeOfFirstUsage3, 500, 1000);
+    AddToListOfServiceData(rec, 1, timeOfFirstUsage3, -1, 500, 1000);
 
     // rating group 2 with no timeOfFirstUsage (recordOpeningTime should be used)
-    AddToListOfServiceData(rec, 2, nullptr, 300, 500);
+    AddToListOfServiceData(rec, 2, nullptr, 230, 300, 500);
 
     auto dataVolumes = SumDataVolumesByRatingGroup(*rec);
     if (dataVolumes.size() != 2) return false;
     auto it = dataVolumes.find(1);
     if (it == dataVolumes.end()) return false;
-    if (it->second.timeOfFirstUsage != 1530429000 || it->second.volumeUplink != 1500
-            || it->second.volumeDownlink != 3000) return false;
+    if (it->second.timeOfFirstUsage != 1530429000 || it->second.duration != 190
+            || it->second.volumeUplink != 1500 || it->second.volumeDownlink != 3000) return false;
 
     auto it2 = dataVolumes.find(2);
     if (it2 == dataVolumes.end()) return false;
-    if (it2->second.timeOfFirstUsage != 1530428400 || it2->second.volumeUplink != 1000
-            || it2->second.volumeDownlink != 1300) return false;
+    if (it2->second.timeOfFirstUsage != 1530428400 || it2->second.duration != 245
+            || it2->second.volumeUplink != 1000 || it2->second.volumeDownlink != 1300) return false;
 
     std::cout << "SumDataVolumesByRatingGroup_Test PASSED. " << std::endl;
     return true;

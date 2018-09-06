@@ -39,5 +39,5 @@ private:
 	static unsigned32 BCDString_to_ULong(const uint8_t* pOctetStr, int size);
     static bool SumDataVolumesByRatingGroup_Test();
     static void AddToListOfServiceData(PGWRecord* rec, long ratingGroup, const char *timeOfFirstUsage,
-                                       long volumeUplink, long volumeDownlink);
+                                       long duration, long volumeUplink, long volumeDownlink);
 };

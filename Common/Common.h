@@ -33,12 +33,15 @@ enum AggregationTestType
 };
 
 struct DataVolumes {
-    DataVolumes (time_t timeOfFirstUsage, unsigned long uplink, unsigned long downlink) :
+    DataVolumes (time_t timeOfFirstUsage, unsigned long duration,
+                 unsigned long uplink, unsigned long downlink) :
         timeOfFirstUsage(timeOfFirstUsage),
+        duration(duration),
         volumeUplink(uplink),
         volumeDownlink(downlink)
     {}
     time_t timeOfFirstUsage;
+    unsigned long duration;
     unsigned long volumeUplink;
     unsigned long volumeDownlink;
 };
