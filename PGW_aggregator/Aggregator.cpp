@@ -116,7 +116,7 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
                     // session having same rating group found, update values
                     sessionIter->second.get()->UpdateData(dataVolumeIter->second.volumeUplink,
                                                       dataVolumeIter->second.volumeDownlink,
-                                                      pGWRecord.duration,
+                                                      dataVolumeIter->second.duration,
                                                       dataVolumeIter->second.timeOfFirstUsage);
                     dataVolumes.erase(dataVolumeIter);
                 }
@@ -139,6 +139,7 @@ void Aggregator::CreateSessions(const PGWRecord& pGWRecord, const DataVolumesMap
         CreateSession(pGWRecord,
                       dataVolumeIter.first /* rating group */,
                       dataVolumeIter.second.timeOfFirstUsage,
+                      dataVolumeIter.second.duration,
                       dataVolumeIter.second.volumeUplink,
                       dataVolumeIter.second.volumeDownlink);
     }
@@ -146,7 +147,7 @@ void Aggregator::CreateSessions(const PGWRecord& pGWRecord, const DataVolumesMap
 
 
 SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsigned32 ratingGroup,
-                               time_t sessionStartTime, unsigned32 volumeUplink, unsigned32 volumeDownlink)
+      time_t sessionStartTime, unsigned32 duration, unsigned32 volumeUplink, unsigned32 volumeDownlink)
 {
     unsigned64 imsi = Utils::TBCDString_to_ULongLong(&pGWRecord.servedIMSI);
     return sessions.insert(std::make_pair(pGWRecord.chargingID,
@@ -156,10 +157,9 @@ SessionMap::iterator Aggregator::CreateSession(const PGWRecord& pGWRecord, unsig
            Utils::MSISDN_to_ULongLong(pGWRecord.servedMSISDN),
            Utils::TBCDString_to_String(pGWRecord.servedIMEISV),
            (pGWRecord.accessPointNameNI ? reinterpret_cast<const char*>(pGWRecord.accessPointNameNI->buf) : ""),
-		   pGWRecord.duration,
-           Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress ?
-                                         pGWRecord.servingNodeAddress->list.array[0] : nullptr),
-           Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
+           duration,
+           Utils::IPAddress_to_ULong(pGWRecord.servingNodeAddress->list.array[0]),
+		   Utils::PLMNID_to_ULong(pGWRecord.servingNodePLMNIdentifier),
 		   ratingGroup,
 		   volumeUplink,
 		   volumeDownlink,
