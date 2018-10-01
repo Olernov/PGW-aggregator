@@ -48,8 +48,8 @@ void Aggregator::AggregatorThreadFunc()
         dbConnect.rlogon(connectString.c_str());
     }
     catch(const otl_exception& ex) {
-        SendAlertIfNeeded(OTL_Utils::OtlExceptionToText(ex));
-        logWriter.Write("**** DB ERROR while logging to DB: **** " +
+        SetExceptionAndSendAlert(OTL_Utils::OtlExceptionToText(ex));
+        logWriter.Write("**** DB ERROR while logging in to DB: **** " +
             crlf + exceptionText, thisIndex);
     }
 
@@ -91,10 +91,9 @@ void Aggregator::ProcessCDRQueue()
     }
     catch(const std::exception& ex) {
         // exception is rethrown from the Session class.
-        exceptionText = ex.what();
+        SetExceptionAndSendAlert(ex.what());
         logWriter.Write(exceptionText, thisIndex);
         dbConnect.reconnect();
-        SendAlertIfNeeded(exceptionText);
     }
 }
 
@@ -127,8 +126,8 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
     catch(const std::exception& ex) {
         std::string message = "ProcessCDR exception: " + std::string(ex.what()) + crlf
                 + Utils::DumpCDRContents(pGWRecord);
+        SetExceptionAndSendAlert(message);
         logWriter.Write(message, thisIndex);
-        SendAlertIfNeeded(message);
     }
 }
 
@@ -179,10 +178,9 @@ void Aggregator::ExportAllSessionsToDB()
                 it.second->ForceExport();
             }
             catch(const std::runtime_error& ex) {
-                exceptionText = ex.what();
+                SetExceptionAndSendAlert(ex.what());
                 logWriter.Write(exceptionText, thisIndex);
                 dbConnect.reconnect();
-                SendAlertIfNeeded(exceptionText);
             }
         }
     }
@@ -220,8 +218,9 @@ void Aggregator::MapSizeReportIfNeeded()
 }
 
 
-void Aggregator::SendAlertIfNeeded(const std::string& excText)
+void Aggregator::SetExceptionAndSendAlert(const std::string& excText)
 {
+    exceptionText = excText;
     if (exceptionText != lastExceptionText && dbConnect.connected) {
         otl_stream dbStream;
         try {

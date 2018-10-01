@@ -54,7 +54,7 @@ private:
     void ExportAllSessionsToDB();
     bool EjectOneIdleSession();
     void MapSizeReportIfNeeded();
-    void SendAlertIfNeeded(const std::string&);
+    void SetExceptionAndSendAlert(const std::string&);
 };
 
 typedef std::shared_ptr<Aggregator> Aggregator_ptr;
