@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include "GPRSRecord.h"
 
 typedef unsigned long unsigned32;
 typedef unsigned long long unsigned64;
@@ -48,3 +49,16 @@ struct DataVolumes {
 
 typedef std::map<unsigned long, DataVolumes> DataVolumesMap;
 
+struct CDR {
+    CDR() = default;
+
+    CDR(std::string* f, GPRSRecord* g)
+        : filename(f)
+        , gprsRecord(g)
+    {}
+
+    std::string* filename;
+    GPRSRecord* gprsRecord;
+};
+
+//typedef std::pair<std::string, GPRSRecord*> CDR;

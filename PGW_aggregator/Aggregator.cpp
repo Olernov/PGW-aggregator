@@ -9,10 +9,8 @@
 
 
 extern LogWriterOtl logWriter;
-
-std::mutex mutex;
-
 extern Config config;
+std::mutex mutex;
 
 Aggregator::Aggregator(int index, const std::string& connectString, ExportRules &er) :
     thisIndex(index),
@@ -28,10 +26,10 @@ Aggregator::Aggregator(int index, const std::string& connectString, ExportRules 
 }
 
 
-void Aggregator::AddCdrToQueue(GPRSRecord *gprsRecord)
+void Aggregator::AddCdrToQueue(const CDR& cdr)
 {
     bool queueIsFull = false;
-    while (!cdrQueue.push(gprsRecord)) {
+    while (!cdrQueue.push(cdr)) {
         if (!queueIsFull) {
             logWriter.Write("AddCdrToQueue: CDR queue max size reached (" + std::to_string(cdrQueueSize) + ")",
                             thisIndex, debug);
@@ -71,11 +69,12 @@ void Aggregator::ProcessCDRQueue()
 {
     try {
         MapSizeReportIfNeeded();
-        GPRSRecord* gprsRecord;
-        if (cdrQueue.pop(gprsRecord)) {
-            ProcessCDR(gprsRecord->choice.pGWRecord);
+        CDR cdr;
+        if (cdrQueue.pop(cdr)) {
+            ProcessCDR(cdr);
             exceptionText.clear();
-            ASN_STRUCT_FREE(asn_DEF_GPRSRecord, gprsRecord);
+            ASN_STRUCT_FREE(asn_DEF_GPRSRecord, cdr.gprsRecord);
+            delete cdr.filename;
         }
         else {
             if (EjectOneIdleSession()) {
@@ -98,14 +97,14 @@ void Aggregator::ProcessCDRQueue()
 }
 
 
-void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
+void Aggregator::ProcessCDR(const CDR& cdr)
 {
     try {
-        DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(pGWRecord);
-        auto eqRange = sessions.equal_range(pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
+        DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(cdr.gprsRecord->choice.pGWRecord);
+        auto eqRange = sessions.equal_range(cdr.gprsRecord->choice.pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
         if (eqRange.first == eqRange.second) {
             // not found
-             CreateSessions(pGWRecord, dataVolumes);
+             CreateSessions(cdr.gprsRecord->choice.pGWRecord, dataVolumes);
         }
         else {
             // one or more sessions having this Charging ID are found, try to find appropriate rating group
@@ -120,12 +119,13 @@ void Aggregator::ProcessCDR(const PGWRecord& pGWRecord)
                     dataVolumes.erase(dataVolumeIter);
                 }
             }
-            CreateSessions(pGWRecord, dataVolumes);
+            CreateSessions(cdr.gprsRecord->choice.pGWRecord, dataVolumes);
         }
     }
     catch(const std::exception& ex) {
         std::string message = "ProcessCDR exception: " + std::string(ex.what()) + crlf
-                + Utils::DumpCDRContents(pGWRecord);
+                + "Filename: " + *cdr.filename + crlf
+                + Utils::DumpCDRContents(cdr.gprsRecord->choice.pGWRecord);
         SetExceptionAndSendAlert(message);
         logWriter.Write(message, thisIndex);
     }

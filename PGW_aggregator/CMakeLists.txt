@@ -7,9 +7,9 @@ include_directories(~/projects/PGW-aggregator/ASN/skeletons)
 include_directories(~/projects/PGW-aggregator/Common)
 include_directories(~/projects/Common)
 include_directories($ENV{BOOST_HOME}/include)
-include_directories($ENV{ORACLE_HOME}/include)
+include_directories($ENV{BOOST_HOME})
+include_directories($ENV{ORACLE_HOME}/sdk/include)
 include_directories($ENV{ORACLE_HOME}/rdbms/public)
-include_directories(/usr/include/oracle/11.2/client64)
 
 aux_source_directory(. SRC_LIST)
 aux_source_directory(../ASN SRC_LIST)
@@ -19,12 +19,13 @@ aux_source_directory(../../Common SRC_LIST)
 #add_definitions(-DEMIT_ASN_DEBUG)
 
 # set the path to the library folder
-link_directories($ENV{ORACLE_HOME}/lib)
+link_directories($ENV{ORACLE_HOME})
 
 add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 # link the libraries to the executable
 target_link_libraries (${PROJECT_NAME} libclntsh.so)
+target_link_libraries (${PROJECT_NAME} libmql1.so)
 target_link_libraries (${PROJECT_NAME} libboost_system.so)
 target_link_libraries (${PROJECT_NAME} libboost_filesystem.so)
 

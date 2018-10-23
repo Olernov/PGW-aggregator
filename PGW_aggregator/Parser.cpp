@@ -117,7 +117,7 @@ void Parser::ParseFile(FILE *pgwFile, const std::string& filename, CdrFileTotals
                 gprsRecord->choice.pGWRecord.listOfServiceData) { // process only CDRs having service data i.e. data volume. Otherwise just ignore CDR record
             AccumulateStats(totals, gprsRecord->choice.pGWRecord);
             auto& aggr = GetAppropiateAggregator(gprsRecord);
-            aggr.AddCdrToQueue(gprsRecord);
+            aggr.AddCdrToQueue(CDR(new std::string(filename), gprsRecord));
             aggr.WakeUp();
         }
         else {
