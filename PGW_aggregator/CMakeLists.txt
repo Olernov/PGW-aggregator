@@ -8,7 +8,6 @@ include_directories(~/projects/Common)
 include_directories($ENV{BOOST_HOME}/include)
 include_directories($ENV{BOOST_HOME})
 include_directories($ENV{ORACLE_HOME}/sdk/include)
-include_directories($ENV{ORACLE_HOME}/rdbms/public)
 
 aux_source_directory(. SRC_LIST)
 aux_source_directory(../Ericsson_ASN_R13 SRC_LIST)

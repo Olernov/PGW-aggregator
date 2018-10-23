@@ -100,11 +100,11 @@ void Aggregator::ProcessCDRQueue()
 void Aggregator::ProcessCDR(const CDR& cdr)
 {
     try {
-        DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(cdr.gprsRecord->choice.pGWRecord);
-        auto eqRange = sessions.equal_range(cdr.gprsRecord->choice.pGWRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
+        DataVolumesMap dataVolumes = Utils::SumDataVolumesByRatingGroup(cdr.gprsRecord->choice.pgwRecord);
+        auto eqRange = sessions.equal_range(cdr.gprsRecord->choice.pgwRecord.chargingID); // equal_range is used here because of multimap. In case of map we could use find function here
         if (eqRange.first == eqRange.second) {
             // not found
-             CreateSessions(cdr.gprsRecord->choice.pGWRecord, dataVolumes);
+             CreateSessions(cdr.gprsRecord->choice.pgwRecord, dataVolumes);
         }
         else {
             // one or more sessions having this Charging ID are found, try to find appropriate rating group
@@ -119,13 +119,13 @@ void Aggregator::ProcessCDR(const CDR& cdr)
                     dataVolumes.erase(dataVolumeIter);
                 }
             }
-            CreateSessions(cdr.gprsRecord->choice.pGWRecord, dataVolumes);
+            CreateSessions(cdr.gprsRecord->choice.pgwRecord, dataVolumes);
         }
     }
     catch(const std::exception& ex) {
         std::string message = "ProcessCDR exception: " + std::string(ex.what()) + crlf
                 + "Filename: " + *cdr.filename + crlf
-                + Utils::DumpCDRContents(cdr.gprsRecord->choice.pGWRecord);
+                + Utils::DumpCDRContents(cdr.gprsRecord->choice.pgwRecord);
         SetExceptionAndSendAlert(message);
         logWriter.Write(message, thisIndex);
     }
